@@ -57,13 +57,15 @@ class IntegrationWrapper(object):
             WiMLogging.sm("Starting routine")
 
             file=sorted(file, key = lambda x: int(x[3]))    #Sort by 3rd element, siteID 3rd column
-            i=0     #Loop, site-id should be sorted, otherwise overwrite will happen
+            i=1     #Loop, site-id should be sorted, otherwise overwrite will happen
             lastUnique = None
             for row in file:
                 if (row[uniqueID]!=lastUnique):
                     i=1
-                rowID=str(row[uniqueID])+str("_test_")+str(i) #Create unique rowID for each discrete point location
-                i=i+1
+                    rowID=str (row[uniqueID])
+                else:
+                    rowID=str(row[uniqueID])+str("_test_")+str(i) #Create unique rowID for each discrete point location
+                    i=i+1
                 self._run(row[id],row[x],row[y],rowID,existingFiles)
                 lastUnique=row[uniqueID]
 
@@ -91,14 +93,18 @@ class IntegrationWrapper(object):
                         if (new_json['featurecollection']!=existing_json['featurecollection']):
                             tb = traceback.format_exc()
                             WiMLogging.sm("Not equal Json's"+" "+rowID+" "+ tb)
-                            self._writeToJSONFile(self.workingDir,rowID,new_json)
+                            self._writeToJSONFile(self.workingDir,rowID+"_"+new_json['workspaceID'],new_json) #Store in log folder
                         else:
                             tb = traceback.format_exc()
-                            WiMLogging.sm("Equal Json's"+" "+rowID+" "+ tb)
+                            WiMLogging.sm("Equal Json's"+" "+rowID+" "+ tb) #Don't create file
                 else:
                     tb = traceback.format_exc()
-                    WiMLogging.sm("New Json"+" "+rowID + " "+ tb)
-                    self._writeToJSONFile(folderDir,rowID,new_json) #Store in reference folder
+                    if "_test_" in rowID:
+                        WiMLogging.sm("New Json, same GAGEID with existing Json "+" "+rowID + " "+ tb) #Store in log folder
+                        self._writeToJSONFile(self.workingDir,rowID,new_json)
+                    else:
+                        WiMLogging.sm("New Json"+" "+rowID + " "+ tb)
+                        self._writeToJSONFile(folderDir,rowID,new_json) #Store in reference folder
         except:
             tb = traceback.format_exc()
             WiMLogging.sm("Error w/ station "+ stationid +" "+ tb)
@@ -124,3 +130,6 @@ class IntegrationWrapper(object):
 
 if __name__ == '__main__':
     IntegrationWrapper()
+
+
+#https://test.streamstats.usgs.gov/streamstatsservices/download?workspaceID= WORKSPACEID &format=
