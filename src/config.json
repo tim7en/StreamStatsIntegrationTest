@@ -2,7 +2,7 @@
   "StreamStats": {
     "baseurl": "https://test.streamstats.usgs.gov",
     "resources": {
-      "watershed": "/streamstatsservices/watershed.geojson?rcode={0}&xlocation={1}&ylocation={2}&crs={3}&includeparameters={4}&includeflowtypes=false&includefeatures=globalwatershed",
+      "watershed": "/streamstatsservices/watershed.geojson?rcode={0}&xlocation={1}&ylocation={2}&crs={3}&includeparameters=false&includeflowtypes=false&includefeatures=true",
       "flowStats": "/streamstatsservices/flowstatistics.json?rcode={0}&workspaceID={1}&includeflowtypes={2}"
     }
   },
@@ -14,5 +14,6 @@
     }
   },
   "workingdirectory": "D:/ClientData/Test",
-  "outputFile": "Output_{0}.csv"
+  "outputFile": "Output_{0}.csv",
+  "referenceFolder": "D:/ClientData/Test/ComparingJsons"
 }
