@@ -12,7 +12,6 @@ from WIMLib import WiMLogging
 from WIMLib import Shared
 from WIMLib.Config import Config
 from ServiceAgents.StreamStatsServiceAgent import StreamStatsServiceAgent
-from ServiceAgents.WIMServiceAgent import WIMServiceAgent
 
 #endregion
 
@@ -28,9 +27,8 @@ class IntegrationWrapper(object):
         try:
             self.config = Config(json.load(open(os.path.join(os.path.dirname(__file__), 'config.json'))))
             self.workingDir = Shared.GetWorkspaceDirectory(self.config["workingdirectory"])
-
-            existingFiles=self._listFiles(os.path.normpath (self.config["referenceFolder"])) #Store list of existing files
-
+            existingFiles=dict([("StatID",self._listFiles(os.path.normpath (self.config["referenceFolderStationID"]))),
+                            ("WorkID", self._listFiles(os.path.normpath (self.config["referenceFolderWorkspaceID"])))])
             parser = argparse.ArgumentParser()
             #Use the following LAT/LON pour point
             parser.add_argument("-file", help="specifies csv file location including gage lat/long and comid's to estimate", type=str,
@@ -76,35 +74,31 @@ class IntegrationWrapper(object):
              WiMLogging.sm("Error executing delineation wrapper "+tb)
 
 #Main function involving streamstats library
-    def _run(self,stationid, x,y, rowID, existingFiles):
-
-        new_json = None
-
+    def _run(self,stationid, x,y, rowID, existingFiles, par = "parameters"):
         try:
             with StreamStatsServiceAgent() as sa:
-                folderDir = (os.path.normpath (self.config["referenceFolder"])+"\\")
-                folderDir = folderDir.replace(os.sep, '/')
-                print rowID
-                refJson = folderDir+rowID+".json"
-                new_json = sa.getBasin(stationid,x,y,4326)
-                if (rowID+".json" in existingFiles):
-                    with open (refJson) as f:
-                        existing_json = json.load(f)
-                        if (new_json['featurecollection']!=existing_json['featurecollection']):
-                            tb = traceback.format_exc()
-                            WiMLogging.sm("Not equal Json's"+" "+rowID+" "+ tb)
-                            self._writeToJSONFile(self.workingDir,rowID+"_"+new_json['workspaceID'],new_json) #Store in log folder
-                        else:
-                            tb = traceback.format_exc()
-                            WiMLogging.sm("Equal Json's"+" "+rowID+" "+ tb) #Don't create file
+                if (par == "parameters"):
+                    folderPath = (os.path.normpath (self.config["referenceFolderStationID"])+"\\")
+                    folderPath = folderPath.replace(os.sep, '/')
+                    try:
+                        sourceFilePath = folderPath+rowID+".json"
+                        with open (sourceFilePath) as f:
+                            sourceFile=json.load(f)
+                            rowID = sourceFile['workspaceID'] #Get corresponding workspaceID
+                    except:
+                        sourceFile = sa.getBasin(stationid,x,y,4326) #Get feature collection if it does not exist
+                        rowID = sourceFile['workspaceID'] #Get corresponding workspaceID
+                        print "Warning: UNIQUE WORKSPACEID will be generated, duplicate station ID in csv input "
+                    folderPoint = existingFiles["WorkID"] #Point to clean room
+                    folderPath = (os.path.normpath (self.config["referenceFolderWorkspaceID"])+"\\")
+                    folderPath = folderPath.replace(os.sep, '/')
+                    inputJson = {par:sa.getBChar(stationid,sourceFile['workspaceID'])['parameters']} #Get basin parameters
                 else:
-                    tb = traceback.format_exc()
-                    if "_test_" in rowID:
-                        WiMLogging.sm("New Json, same GAGEID with existing Json "+" "+rowID + " "+ tb) #Store in log folder
-                        self._writeToJSONFile(self.workingDir,rowID,new_json)
-                    else:
-                        WiMLogging.sm("New Json"+" "+rowID + " "+ tb)
-                        self._writeToJSONFile(folderDir,rowID,new_json) #Store in reference folder
+                    folderPoint = existingFiles["StatID"] #Point to clean room
+                    folderPath = (os.path.normpath (self.config["referenceFolderStationID"])+"\\")
+                    folderPath = folderPath.replace(os.sep, '/')
+                    inputJson = sa.getBasin(stationid,x,y,4326) #Get feature collection
+                self._compareJsons(inputJson,folderPoint,folderPath,rowID, par)         
         except:
             tb = traceback.format_exc()
             WiMLogging.sm("Error w/ station "+ stationid +" "+ tb)
@@ -128,6 +122,27 @@ class IntegrationWrapper(object):
             tb=traceback.format_exc()
             WiMLogging.sm("Error writing json output "+tb)
 
+    def _compareJsons (self,inputJson,folderPoint,folderPath,ID,par):
+        rowID=ID
+        refJson = folderPath+rowID+".json" #Get the reference json file from existing root folder
+        if (rowID+".json" in folderPoint): #Check if the unique ID exists in the clean room
+            with open (refJson) as f:
+                existing_json = json.load(f)
+                if par not in existing_json or inputJson[par]!=existing_json[par]:
+                    tb = traceback.format_exc()
+                    WiMLogging.sm("Not equal Json's"+" "+rowID+" "+ tb)
+                    self._writeToJSONFile(self.workingDir,rowID,inputJson) #Store in log folder
+                else:
+                    tb = traceback.format_exc()
+                    WiMLogging.sm("Equal Json's"+" "+rowID+" "+ tb) #Don't create file
+        else:
+            tb = traceback.format_exc()
+            if "_test_" in rowID:
+                WiMLogging.sm("New Json, duplicate. Specify unique property in addition to GageID "+" "+rowID + " "+ tb) #Store in log folder
+                self._writeToJSONFile(self.workingDir,rowID+"_"+inputJson['workspaceID'],inputJson)
+            else:
+                WiMLogging.sm("New Json"+" "+rowID + " "+ tb)
+                self._writeToJSONFile(folderPath,rowID,inputJson)
 if __name__ == '__main__':
     IntegrationWrapper()
 

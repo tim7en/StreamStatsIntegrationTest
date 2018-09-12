@@ -21,7 +21,6 @@
 #region "Imports"
 import traceback
 import json
-from WIMLib.ServiceAgents import ServiceAgentBase
 from WIMLib.Config import Config
 import os
 import requests

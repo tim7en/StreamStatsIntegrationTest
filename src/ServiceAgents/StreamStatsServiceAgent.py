@@ -21,7 +21,6 @@
 #region "Imports"
 import traceback
 import json
-from WIMLib.ServiceAgents import ServiceAgentBase
 from WIMLib.Config import Config
 import os
 import glob, sys, os
@@ -62,6 +61,22 @@ class StreamStatsServiceAgent(object):
         except:
             tb = traceback.format_exc()
             self._sm("StreamStatsService getBasin Error "+tb, "ERROR")
+
+    def getBChar(self,region,workspaceID,includeParameters=True):
+        try:
+            resource = self.resources["basinChar"].format(region,workspaceID,includeParameters)
+
+            try:
+                results = self.Execute (resource)
+                return results
+            except:
+                tb = traceback.format_exc()
+                self._sm("Exception raised for " + os.path.basename(resource), "ERROR")
+        except:
+            tb = traceback.format_exc()
+            self._sm("StreamstatsService getBChar Error "+tb, "ERROR")
+
+
     def getFlowStats(self,region,workspaceID,flowstats):
         results={}
         try:            
@@ -105,7 +120,7 @@ class StreamStatsServiceAgent(object):
 
     def _sm(self,msg,type="INFO", errorID=0):        
         WiMLogging.sm(msg,type="INFO", errorID=0)
-        #print "Smtg"
+        print "Processing"
 
     #endregion
     #region Helper Methods

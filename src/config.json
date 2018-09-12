@@ -3,7 +3,8 @@
     "baseurl": "https://test.streamstats.usgs.gov",
     "resources": {
       "watershed": "/streamstatsservices/watershed.geojson?rcode={0}&xlocation={1}&ylocation={2}&crs={3}&includeparameters=false&includeflowtypes=false&includefeatures=true",
-      "flowStats": "/streamstatsservices/flowstatistics.json?rcode={0}&workspaceID={1}&includeflowtypes={2}"
+      "flowStats": "/streamstatsservices/flowstatistics.json?rcode={0}&workspaceID={1}&includeflowtypes={2}",
+      "basinChar": "/streamstatsservices/parameters.json?rcode={0}&workspaceID={1}&includeparameters=true" 
     }
   },
   "WIM": {
@@ -15,5 +16,6 @@
   },
   "workingdirectory": "D:/ClientData/Test",
   "outputFile": "Output_{0}.csv",
-  "referenceFolder": "D:/ClientData/Test/ComparingJsons"
+  "referenceFolderStationID": "D:/ClientData/Library/BasinDel",
+  "referenceFolderWorkspaceID": "D:/ClientData/Library/BasinChar"
 }
