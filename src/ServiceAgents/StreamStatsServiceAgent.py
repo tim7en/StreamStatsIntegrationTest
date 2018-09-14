@@ -62,9 +62,9 @@ class StreamStatsServiceAgent(object):
             tb = traceback.format_exc()
             self._sm("StreamStatsService getBasin Error "+tb, "ERROR")
 
-    def getBChar(self,region,workspaceID,includeParameters=True):
+    def getBChar(self,region,workspaceID):
         try:
-            resource = self.resources["basinChar"].format(region,workspaceID,includeParameters)
+            resource = self.resources["basinChar"].format(region,workspaceID,True)
 
             try:
                 results = self.Execute (resource)
