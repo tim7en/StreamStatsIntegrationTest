@@ -120,7 +120,7 @@ class StreamStatsServiceAgent(object):
 
     def _sm(self,msg,type="INFO", errorID=0):        
         WiMLogging.sm(msg,type="INFO", errorID=0)
-        print "Processing"
+        print type, msg
 
     #endregion
     #region Helper Methods
