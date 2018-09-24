@@ -18,10 +18,7 @@ from threading import Thread
 import time
 import random
 from Queue import Queue
-from threading import Condition
-maxThreads = 5
-queue = Queue(maxsize=5)
-condition = Condition()
+
 #endregion
 
 ##-------1---------2---------3---------4---------5---------6---------7---------8
@@ -29,8 +26,9 @@ condition = Condition()
 ##-------+---------+---------+---------+---------+---------+---------+---------+
 #http://stackoverflow.com/questions/13653991/passing-quotes-in-process-start-arguments
 
-class InputThread(Thread):
-    def run(self):
+class IntigrationTest(object):
+    def __init__(self):
+        self.maxThreads = 5
         try:
             self.config = Config(json.load(open(os.path.join(os.path.dirname(__file__), 'config.json'))))
             self.workingDir = Shared.GetWorkspaceDirectory(self.config["workingdirectory"])
@@ -60,12 +58,14 @@ class InputThread(Thread):
             WiMLogging.init(os.path.join(self.workingDir,"Temp"),"Integration.log")
             self._sm("Starting routine")
             
-            global queue
-            
+            queue= Queue()  
+            for thrd in range(self.maxThreads):
+                worker = ThreadWorker(queue)
+                worker.start()
+            #next thrd
+
             for row in file:
-                print 'loading '+row[uniqueID]
-                queue.put((row[rcode],row[x],row[y],refDir,row[uniqueID], self.workingDir))  
-                if queue.full(): queue.join()          
+                queue.put((row[rcode],row[x],row[y],refDir,row[uniqueID], self.workingDir))
 
             
             self._sm('Finished.  Total time elapsed:', str(round((time.time()- startTime)/60, 2)), 'minutes')
@@ -73,41 +73,36 @@ class InputThread(Thread):
         except:
             tb = traceback.format_exc()
             self._sm("Error executing delineation wrapper "+tb)
-    
-    def _listFiles(self,folder): #Function to list files in the directory
-        try:
-            for root, dirs, files in os.walk(folder, topdown=False):
-                existingFiles=files
-            return existingFiles
-        except:
-            tb = traceback.format_exc()
-            WiMLogging.sm("Something wrong with folder path "+ folder +" "+ tb)
+
 
     def _sm(self,msg,type="INFO", errorID=0):        
         WiMLogging.sm(msg,type, errorID)
         #print type, msg
 
 
-class RunThread(Thread):
-    def run(self):
-        global queue
-        while True:
-            try:
-                
-                args = queue.get()
-                thr=Thread(target=self._run, args=args)
-                thr.start()
+class ThreadWorker(Thread):
+    def __init__(self, queue):
+        Thread.__init__(self)
+        self.queue = queue
 
-            except queue.empty:  # on python 2 use Queue.Empty            
-                break
-            except:
-                tb = traceback.format_exc()
-                WiMLogging.sm("Error w/ run "+ tb)
-
+    def run(self): 
+        try:            
+            while True:
+                rcode,x,y,refdir,id,workspace = self.queue.get()
+                try:
+                    self._run(rcode,x,y,refdir,id,workspace)
+                except:
+                    tb = traceback.format_exc()
+                    WiMLogging.sm("Error w/ run "+ tb)
+                finally:
+                    self.queue.task_done()
+            #next
+        except:
+            tb = traceback.format_exc()
+            WiMLogging.sm("Error running "+tb) 
 
     
-    def _run(self,rcode, x,y, path,siteIdentifier,workingDir):
-        global queue
+    def _run(self,rcode, x,y, path,siteIdentifier,workingDir):        
         try:      
             result = None
 
@@ -123,8 +118,6 @@ class RunThread(Thread):
         except:
             tb = traceback.format_exc()
             WiMLogging.sm("Error w/ station "+ tb)
-        finally:
-           queue.task_done()
 
     def _writeToJSONFile(self,path, fileName, data):  #Define function to write as json object
     #https://gist.github.com/keithweaver/ae3c96086d1c439a49896094b5a59ed0
@@ -160,5 +153,5 @@ class RunThread(Thread):
             self._writeToJSONFile(workingDir, ID+"_viaError",{'error':tb})
 
 if __name__ == '__main__':
-    InputThread().start()
-    RunThread().start()    
+    IntigrationTest()
+      
