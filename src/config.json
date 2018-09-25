@@ -16,6 +16,6 @@
   },
   "workingdirectory": "D:/ClientData/Test",
   "outputFile": "Output_{0}.csv",
-  "referenceFolderStationID": "D:/ClientData/Library/BasinDel",
-  "referenceFolderWorkspaceID": "D:/ClientData/Library/BasinChar"
+  "referenceFolderBasinDel": "D:/ClientData/Library/BasinDel",
+  "referenceFolderBasinChar": "D:/ClientData/Library/BasinChar"
 }

@@ -39,13 +39,10 @@ class IntigrationTest(object):
                                 default = 'D:\ClientData\InputCoordinates.csv') #Change to the location of the csv file
             parser.add_argument("-inputEPSG_Code", help="Default WGS 84 (4326),see http://spatialreference.org/ref/epsg/ ", type=int,
                                 default = '4326')
-            parser.add_argument("-checkParams", help="Bool indicating characteristic step", type=bool,
-                                default = False)
-
             args = parser.parse_args()
             if not os.path.isfile(args.file): raise Exception("File does not exist")
-            
-            refDir = self.config["referenceFolderStationID"] if args.checkParams else self.config["referenceFolderStationID"]
+
+            refDir = {"bdel":self.config["referenceFolderBasinDel"],"bchar":self.config["referenceFolderBasinChar"]}
 
             file = Shared.readCSVFile(args.file)
             headers = file[0]
@@ -57,17 +54,16 @@ class IntigrationTest(object):
             startTime = time.time()
             WiMLogging.init(os.path.join(self.workingDir,"Temp"),"Integration.log")
             self._sm("Starting routine")
-            
+
             queue= Queue()  
             for thrd in range(self.maxThreads):
                 worker = ThreadWorker(queue)
                 worker.start()
-            #next thrd
 
             for row in file:
                 queue.put((row[rcode],row[x],row[y],refDir,row[uniqueID], self.workingDir))
 
-            
+
             self._sm('Finished.  Total time elapsed:', str(round((time.time()- startTime)/60, 2)), 'minutes')
 
         except:
@@ -84,8 +80,8 @@ class ThreadWorker(Thread):
     def __init__(self, queue):
         Thread.__init__(self)
         self.queue = queue
-
-    def run(self): 
+        
+    def run(self):
         try:            
             while True:
                 rcode,x,y,refdir,id,workspace = self.queue.get()
@@ -99,30 +95,34 @@ class ThreadWorker(Thread):
             #next
         except:
             tb = traceback.format_exc()
-            WiMLogging.sm("Error running "+tb) 
+            WiMLogging.sm("Error running "+tb)
 
-    
-    def _run(self,rcode, x,y, path,siteIdentifier,workingDir):        
-        try:      
+
+    def _run(self,rcode, x,y, path,siteIdentifier,workingDir):   
+        try:
             result = None
-
+            
             with StreamStatsServiceAgent() as sa: 
                 try:
                     response = sa.getBasin(rcode,x,y,4326) #Get feature collection
-                    result = response["featurecollection"]
+                    responseBChar = sa.getBChar(rcode,response['workspaceID'])
+                    resultBChar = responseBChar['parameters']
+                    result = response['featurecollection'][1]['feature']['features'][0]['geometry']['coordinates']
                 except:
                     pass                
 
             if result == None: raise Exception("{0} Failed to return from service".format(siteIdentifier))
-            self._compare(result,path,siteIdentifier,workingDir)         
+            if resultBChar == None: raise Exception ("{0} Failed to return from service Bchar".format(siteIdentifier))
+            self._compare(result, path.get("bdel"),siteIdentifier,workingDir)
+            self._compare(resultBChar, path.get("bchar"),siteIdentifier,workingDir)
         except:
             tb = traceback.format_exc()
             WiMLogging.sm("Error w/ station "+ tb)
 
     def _writeToJSONFile(self,path, fileName, data):  #Define function to write as json object
     #https://gist.github.com/keithweaver/ae3c96086d1c439a49896094b5a59ed0
-        filePathNameWExt = os.path.join(path,fileName+".json")
         try:
+            filePathNameWExt = os.path.join(path,fileName+".json")
             with open(filePathNameWExt, 'w') as fp:
                 json.dump(data, fp)
         except:
@@ -130,16 +130,16 @@ class ThreadWorker(Thread):
             WiMLogging.sm("Error writing json output "+tb)
 
     def _compare(self,inputObj,path,ID, workingDir):
-        refObj = None
-        refFile = os.path.join(path, ID+".json") #Get the reference json file from existing root folder
         try:  
+            refObj = None
+            refFile = os.path.join(path, ID+".json") #Get the reference json file from existing root folder
             if os.path.isfile(refFile):
                 with open (refFile) as f:
                     refObj = json.load(f)
 
                 if inputObj!= refObj:
                     WiMLogging.sm("Not equal Json's"+" "+ID)
-                    self._writeToJSONFile(workingDir,ID,inputObj) #Store in log folder
+                    self._writeToJSONFile(workingDir,ID+"_"+str(path.rsplit('/', 1)[-1]),inputObj) #Store in log folder
                 else:
                     tb = traceback.format_exc()
                     WiMLogging.sm("Equal Json's"+" "+ID+" "+ tb) #Don't create file
@@ -152,6 +152,7 @@ class ThreadWorker(Thread):
             WiMLogging.sm("Error Comparing "+tb)
             self._writeToJSONFile(workingDir, ID+"_viaError",{'error':tb})
 
+    #Create function to compare basin char
 if __name__ == '__main__':
     IntigrationTest()
       
