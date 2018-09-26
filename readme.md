@@ -34,6 +34,7 @@ To push tags to remote origin: `git push origin --tags`
 ## Authors
 
 * **[Jeremy Newson](https://www.usgs.gov/staff-profiles/jeremy-k-newson)**  - *Lead Developer* - [USGS Web Informatics & Mapping](https://wim.usgs.gov/)
+* **[Timur Sabitov](https://github.com/tim7en)**  - *Developer* - [USGS Maryland Water Science Center](https://www.usgs.gov/centers/md-de-dc-water)
 
 See also the list of [contributors](../../graphs/contributors) who participated in this project.
 
