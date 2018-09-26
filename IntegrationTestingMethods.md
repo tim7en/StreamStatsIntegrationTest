@@ -48,11 +48,8 @@ class IntigrationTest(object):
             
             parser = argparse.ArgumentParser()
             #Use the following LAT/LON pour point
-            parser.add_argument("-file", help="specifies csv file location including \
-            gage lat/long and comid's to estimate", type=str, default = 'D:\ClientData\
-            InputCoordinates.csv') #Change to the location of the csv file
-            parser.add_argument("-inputEPSG_Code", help="Default WGS 84 (4326),see\
-            http://spatialreference.org/ref/epsg/ ", type=int, default = '4326')
+            parser.add_argument("-file", help="specifies csv file location including gage lat/long and comid's to estimate", type=str, default = 'D:\ClientData\InputCoordinates.csv') #Change to the location of the csv file
+            parser.add_argument("-inputEPSG_Code", help="Default WGS 84 (4326),see http://spatialreference.org/ref/epsg/ ", type=int, default = '4326')
             args = parser.parse_args()
             if not os.path.isfile(args.file): raise Exception("File does not exist")
 
@@ -80,8 +77,7 @@ class IntigrationTest(object):
                 queue.put((row[rcode],row[x],row[y],refDir,row[uniqueID], 
                 self.workingDir))
                 
-            self._sm('Finished.  Total time elapsed:', str(round((time.time()- 
-            startTime)/60, 2)), 'minutes')
+            self._sm('Finished.  Total time elapsed:', str(round((time.time()- startTime)/60, 2)), 'minutes')
 
         except:
             tb = traceback.format_exc()
@@ -130,15 +126,13 @@ class ThreadWorker(Thread):
                     response = sa.getBasin(rcode,x,y,4326) #Get feature collection
                     responseBChar = sa.getBChar(rcode,response['workspaceID'])
                     resultBChar = responseBChar['parameters']
-                    result = response['featurecollection'][1]['feature']['features'][0]
-                    ['geometry']['coordinates']
+                    result = response['featurecollection'][1]['feature']['features'][0]['geometry']['coordinates']
                 except:
                     pass                
     
             if result == None: raise Exception("{0} Failed to return from service"
             .format(siteIdentifier))
-            if resultBChar == None: raise Exception ("{0} Failed to return from service \
-            Bchar".format(siteIdentifier))
+            if resultBChar == None: raise Exception ("{0} Failed to return from service Bchar".format(siteIdentifier))
             self._compare(result, path.get("bdel"),siteIdentifier,workingDir)
             self._compare(resultBChar, path.get("bchar"),siteIdentifier,workingDir)
         except:
@@ -175,8 +169,7 @@ def _compare(self,inputObj,path,ID, workingDir):
 
             if inputObj!= refObj:
                 WiMLogging.sm("Not equal Json's"+" "+ID)
-                self._writeToJSONFile(workingDir,ID+"_"+str(path.rsplit('/', 1)[-1]),
-                inputObj) #Store in log folder
+                self._writeToJSONFile(workingDir,ID+"_"+str(path.rsplit('/', 1)[-1]), inputObj) #Store in log folder
             else:
                 tb = traceback.format_exc()
                 WiMLogging.sm("Equal Json's"+" "+ID+" "+ tb) #Don't create file
