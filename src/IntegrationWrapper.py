@@ -100,20 +100,21 @@ class ThreadWorker(Thread):
 
     def _run(self,rcode, x,y, path,siteIdentifier,workingDir):   
         try:
-            result = None
-            
+            resultBChar = None
+            resultBDel = None
+
             with StreamStatsServiceAgent() as sa: 
                 try:
                     response = sa.getBasin(rcode,x,y,4326) #Get feature collection
                     responseBChar = sa.getBChar(rcode,response['workspaceID'])
-                    resultBChar = responseBChar['parameters']
-                    result = response['featurecollection'][1]['feature']['features'][0]['geometry']['coordinates']
+                    resultBChar = responseBChar['parameters'] #List of dictionaries
+                    resultBDel = response['featurecollection'][1]['feature']['features'][0]['geometry']['coordinates'][0] #List of lists
                 except:
                     pass                
 
-            if result == None: raise Exception("{0} Failed to return from service".format(siteIdentifier))
+            if resultBDel == None: raise Exception("{0} Failed to return from service BDel".format(siteIdentifier))
             if resultBChar == None: raise Exception ("{0} Failed to return from service Bchar".format(siteIdentifier))
-            self._compare(result, path.get("bdel"),siteIdentifier,workingDir)
+            self._compare(resultBDel, path.get("bdel"),siteIdentifier,workingDir)
             self._compare(resultBChar, path.get("bchar"),siteIdentifier,workingDir)
         except:
             tb = traceback.format_exc()
@@ -133,6 +134,19 @@ class ThreadWorker(Thread):
         try:  
             refObj = None
             refFile = os.path.join(path, ID+".json") #Get the reference json file from existing root folder
+            inputObj.sort()
+
+            if (type(inputObj[0])!=list): #Condition: If the inner object of the list is not a list then dictionary
+                i = 0
+                dictlist = [[] for _ in range (len(inputObj))] #Initialize list of lists
+
+                while i < len(inputObj):
+                    dic = (inputObj[i]) #Extract dictionary object i
+                    for key in sorted(dic): #Sort it by keys and extract each key, next append to the dictionary
+                        dictlist[i].append({key:str(dic[key])})
+                    i += 1
+                inputObj = dictlist #Return sorted list of lists instead of list of dictionaries for basin characteristics
+        
             if os.path.isfile(refFile):
                 with open (refFile) as f:
                     refObj = json.load(f)
@@ -145,7 +159,7 @@ class ThreadWorker(Thread):
                     WiMLogging.sm("Equal Json's"+" "+ID+" "+ tb) #Don't create file
             else:
                 #file not in reference folder, Create it
-                WiMLogging.sm("file not in reference folder, Creating it"+" "+refFile)
+                WiMLogging.sm("File not in reference folder"+" "+refFile)
                 self._writeToJSONFile(path, ID,inputObj)
         except:
             tb=traceback.format_exc()
