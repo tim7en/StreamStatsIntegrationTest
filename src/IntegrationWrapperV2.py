@@ -8,6 +8,7 @@ import os
 import argparse
 import fnmatch
 import json
+import threading
 from WIMLib import WiMLogging
 from WIMLib import Shared
 from WIMLib.Config import Config
@@ -18,42 +19,55 @@ import random
 from Queue import Queue
 
 #Set globals
-simulThreads = 5.0           #Timout interval. Timout threads every few intervals, to reduce load on server.
-TS = 100
+simulThreads = 2           #Timout interval. Timout threads every few intervals, to reduce load on server.
 queue_list = Queue()
-bdelMissing = [] #Global, missing basin delination calls
+bdelMissing = []
 bcharMissing = []
 bdelNoteq = []
 bcharNoteq = []
+bcharNew = []
+bdelNew = []
+bdelHUCID = []
+bcharHUCID = []
+xy = []
+bcharXY = []
+bdelXY = []
+bcharRegion = []
+bdelRegion = []
+bcharDif = []
+bdelDif = []
+
 config = Config(json.load(open(os.path.join(os.path.dirname(__file__), 'config.json'))))
 workingDir = Shared.GetWorkspaceDirectory(config["workingdirectory"])
+
 parser = argparse.ArgumentParser()
-#Use the following LAT/LON pour point
-parser.add_argument("-file", help="specifies csv file location including gage lat/long and comid's to estimate", type=str,
+parser.add_argument("-file", help="specifies csv file location including gage lat/long and comid's to estimate", type=str, #Use the following LAT/LON pour point
                     default = 'D:\ClientData\InputCoordinates.csv') #Change to the location of the csv file
 parser.add_argument("-inputEPSG_Code", help="Default WGS 84 (4326),see http://spatialreference.org/ref/epsg/ ", type=int,
                     default = '4326')
 args = parser.parse_args()
+
 if not os.path.isfile(args.file): raise Exception("File does not exist")
 refDir = {"bdel":config["referenceFolderBasinDel"],"bchar":config["referenceFolderBasinChar"]}
 file = Shared.readCSVFile(args.file)
+
 headers = file[0]
 rcode = headers.index("State") if "State" in headers else 0
 x = headers.index("dec_long") if "dec_long" in headers else 1
 y = headers.index("dec_lat") if "dec_lat" in headers else 2
 uniqueID = headers.index("GageID") if "GageID" in headers else 3
 file.pop(0)#removes the header
+
 startTime = time.time()
 WiMLogging.init(os.path.join(workingDir,"Temp"),"Integration.log")
 
 
-row_count = sum(1 for row in file)
-maxThreads = row_count
-wrapper = int(row_count / maxThreads) + (row_count % maxThreads > 0)
-history_list = []
+row_count = sum(1 for row in file) #Total number of sites
+maxThreads = row_count #Equal to the number of sites
+
 
 def run(i, q):
-    rcode,x,y,refdir,id,workspace = q.get()
+    rcode,x,y,refdir,id,workspace = q.get() #Target function for threads to run
     try:
         run_func(rcode,x,y,refdir,id,workspace)
     except:
@@ -62,7 +76,7 @@ def run(i, q):
     finally:
         q.task_done()
 
-def run_func(rcode, x,y, path,siteIdentifier,workingDir):   
+def run_func(rcode, x,y, path,siteIdentifier,workingDir):
     try:
         resultBChar = None
         resultBDel = None
@@ -73,6 +87,8 @@ def run_func(rcode, x,y, path,siteIdentifier,workingDir):
                 responseBChar = sa.getBChar(rcode,response['workspaceID'])
                 resultBChar = responseBChar['parameters'] #List of dictionaries
                 resultBDel = response['featurecollection'][1]['feature']['features'][0]['geometry']['coordinates'][0] #List of lists
+                HUCID = response ['featurecollection'][1]['feature']['features'][0]['properties']['HUCID']
+                xy = [x,y]
             except:
                 pass                
 
@@ -86,8 +102,8 @@ def run_func(rcode, x,y, path,siteIdentifier,workingDir):
             bcharMissing.append(siteIdentifier)
             print "Finished: ", siteIdentifier
             raise Exception ("{0} Failed to return from service Bchar".format(siteIdentifier))
-        compare(resultBDel, path.get("bdel"),siteIdentifier,workingDir)
-        compare(resultBChar, path.get("bchar"),siteIdentifier,workingDir)
+        compare(resultBDel, path.get("bdel"),siteIdentifier,workingDir, HUCID, xy, rcode)
+        compare(resultBChar, path.get("bchar"),siteIdentifier,workingDir, HUCID, xy, rcode)
         print "Finished: ", siteIdentifier
     
     except:
@@ -104,7 +120,7 @@ def writeToJSONFile(path, fileName, data):  #Define function to write as json ob
         tb=traceback.format_exc()
         WiMLogging.sm("Error writing json output "+tb)
 
-def compare(inputObj,path,ID, workingDir):
+def compare(inputObj,path,ID, workingDir, HUCID, xy, rcode):
     try:  
         refObj = None
         refFile = os.path.join(path, ID+".json") #Get the reference json file from existing root folder
@@ -124,15 +140,33 @@ def compare(inputObj,path,ID, workingDir):
         if os.path.isfile(refFile):
             with open (refFile) as f:
                 refObj = json.load(f)
-
             if inputObj!= refObj:
+                #first_set = set(map(tuple, inputObj[0]))
+                #secnd_set = set(map(tuple, refObj[0]))
+                
                 if (path.find('Char')>0):
                     global bcharNoteq
+                    global bcharHUCID
+                    global bcharXY
+                    global bcharRegion
+                    global bcharDif
                     bcharNoteq.append (ID)
+                    bcharHUCID.append (HUCID)
+                    bcharXY.append (xy)
+                    bcharRegion.append (rcode)
+                    #bcharDif.append(first_set.symmetric_difference(secnd_set))
                 else:
                     global bdelNoteq
+                    global bdelHUCID
+                    global bdelXY
+                    global bdelRegion
+                    global bdelDif
                     bdelNoteq.append (ID)            
-                
+                    bdelHUCID.append (HUCID)
+                    bdelXY.append (xy)
+                    bdelRegion.append (rcode)
+                    #bdelDif.append(first_set.symmetric_difference(secnd_set))
+
                 WiMLogging.sm("Not equal Json's"+" "+ID)
                 writeToJSONFile(workingDir,ID+"_"+str(path.rsplit('/', 1)[-1]),inputObj) #Store in log folder
             else:
@@ -140,6 +174,12 @@ def compare(inputObj,path,ID, workingDir):
                 WiMLogging.sm("Equal Json's"+" "+ID+" "+ tb) #Don't create file
         else:
             #file not in reference folder, Create it
+            if (path.find('Char')>0):
+                global bcharNew
+                bcharNew.append (ID)
+            else:
+                global bdelNew
+                bdelNew.append (ID)    
             WiMLogging.sm("File not in reference folder"+" "+refFile)
             writeToJSONFile(path, ID,inputObj)
     except:
@@ -147,34 +187,54 @@ def compare(inputObj,path,ID, workingDir):
         WiMLogging.sm("Error Comparing "+tb)
         writeToJSONFile(workingDir, ID+"_viaError",{'error':tb})
 
-for i in range(maxThreads):
+#def compareDicts (x, y):
+   # pairs = zip(x, y)
+    #dif = [[k for k in x if x[k] != y[k]] for x, y in pairs if x != y]
+
+for i in range(maxThreads): #Run threads as daemon, so they close when finish
     worker = Thread(target=run, args=(i, queue_list,))
     worker.setDaemon(True)
     time.sleep(0.1)
     worker.start()
 
-j = 0
+threadsINI = threading.active_count()
+f1 = 0
 for row in file:
     queue_list.put((row[rcode],row[x],row[y],refDir,row[uniqueID], workingDir))
-    if (float((j+1)/simulThreads).is_integer()):
-        WiMLogging.sm('*** Main thread waiting: '+ str(TS)+ ' sec')
-        time.sleep (TS)
-    WiMLogging.sm('***Calling Input: '+ str(j))
-    j = j+1
-    
+    WiMLogging.sm('***Calling Input: '+ str(f1))
+    f1=f1+1
+    if f1 == simulThreads:
+        while f1 == simulThreads and threading.active_count() == threadsINI:
+            pass            #Inifite loop waiting for thread to be done with work
+            #time.sleep (0.1) #There is a chance to run into error if two threads finished simultaniously within 0.1 or higher interval
+        if threading.active_count()<threadsINI:
+            print ('Initialized')
+            f1 = simulThreads - (threadsINI-threading.active_count ())
+            threadsINI = threading.active_count ()
 
-queue_list.join()
+queue_list.join() #Close mainthread after child threads done working
 
 WiMLogging.sm('********************************************************')
-WiMLogging.sm('***Testing Summary***')
+WiMLogging.sm('***Testing Summary***') #Grab global variables and write them into log file
 WiMLogging.sm('Threads Invoked: '+ str(maxThreads))
-WiMLogging.sm('User select wait time for server before next thread initialized: '+ str(TS))
+#WiMLogging.sm('User select wait time for server before next thread initialized: '+ str(TS))
 WiMLogging.sm('********************************************************')
 WiMLogging.sm('Basin Deliniation (Calls/Returned): '+ str(row_count) +'/'+str(row_count-len(bdelMissing)))
-WiMLogging.sm('BDel Sites Missing: '+ str(bdelMissing))
-WiMLogging.sm('I\O difference BDel of calls and lib found: '+ str(bdelNoteq))
-WiMLogging.sm('********************************************************')
 WiMLogging.sm('Basin Characteristics (Calls/Returned): '+ str(row_count) + '/'+ str(row_count-len(bcharMissing)))
+WiMLogging.sm('BDel Sites Missing: '+ str(bdelMissing))
 WiMLogging.sm('BChar Sites Missing: '+ str(bcharMissing))
+WiMLogging.sm('Added to the refrenece BDel: '+ str(bdelNew))
+WiMLogging.sm('Added to the reference BChar: '+ str(bcharNew))
+WiMLogging.sm('I\O difference BDel of calls and lib found: '+ str(bdelNoteq))
 WiMLogging.sm('I\O difference BChar of calls and lib found: '+ str(bcharNoteq))
+WiMLogging.sm('BDel x,y coordinates:'+ str(bdelXY))
+WiMLogging.sm('BChar x,y coordinates:'+ str(bcharXY))
+WiMLogging.sm('BDel Regions:'+ str(bdelRegion))
+WiMLogging.sm('BChar Regions:'+ str(bcharRegion))
+WiMLogging.sm('BDel HUCID:'+ str(bdelHUCID))
+WiMLogging.sm('BChar HUCID:'+ str(bcharHUCID))
+#WiMLogging.sm('BDel list dif:'+str(bdelDif))
+#WiMLogging.sm('BChar list dif:'+str(bcharDif))
+WiMLogging.sm('********************************************************')
+
 print '*** Done'
