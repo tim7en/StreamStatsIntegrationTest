@@ -21,7 +21,10 @@ from Queue import Queue
 #Set globals
 simulThreads = 4           #Initial number of thread calls (N+1) because of 0
 queue_list = Queue()
-bdelMissing = []
+fSummary = open ('Summary.txt', 'w+') #Create summary file if it does not exist
+fSummary.write ( 'Starting Summary'+ '\n')
+fSummary.close ()
+'''bdelMissing = []
 bcharMissing = []
 bdelNoteq = []
 bcharNoteq = []
@@ -35,7 +38,7 @@ bdelXY = []
 bcharRegion = []
 bdelRegion = []
 bcharDif = []
-bdelDif = []
+bdelDif = []'''
 
 config = Config(json.load(open(os.path.join(os.path.dirname(__file__), 'config.json'))))
 workingDir = Shared.GetWorkspaceDirectory(config["workingdirectory"])
@@ -179,15 +182,21 @@ def run_func(rcode, x,y, path,siteIdentifier,workingDir):
                 resultBChar = None
 
         if resultBDel == None:
-            global bdelMissing
-            bdelMissing.append(siteIdentifier)
+            fSummary = open('Summary.txt', 'a') 
+            #global bdelMissing
+            #bdelMissing.append(siteIdentifier)
+            fSummary.write (str(siteIdentifer)+ ':' + ' Missing Return for BDel'+ '\n')
+            fSummary.close ()
             print "Finished: ", siteIdentifier
             raise Exception("{0} Failed to return from service BDel".format(siteIdentifier))
         else:
             compare(resultBDel, path.get("bdel"),siteIdentifier,workingDir, HUCID, xy, rcode)
         if resultBChar == None:
-            global bcharMissing
-            bcharMissing.append(siteIdentifier)
+            fSummary = open('Summary.txt', 'a') 
+            #global bcharMissing
+            #bcharMissing.append(siteIdentifier)
+            fSummary.write (str(siteIdentifer)+ ':' + ' Missing Return for BChar'+ '\n')
+            fSummary.close ()
             print "Finished: ", siteIdentifier
             raise Exception ("{0} Failed to return from service Bchar".format(siteIdentifier))
         else:
@@ -202,7 +211,7 @@ def writeToJSONFile(path, fileName, data):  #Define function to write as json ob
 #https://gist.github.com/keithweaver/ae3c96086d1c439a49896094b5a59ed0
     try:
         filePathNameWExt = os.path.join(path,fileName+".json")
-        with open(filePathNameWExt, 'w') as fp:
+        with open(filePathNameWExt, "w+") as fp:
             json.dump(data, fp)
     except:
         tb=traceback.format_exc()
@@ -229,32 +238,55 @@ def compare(inputObj,path,ID, workingDir, HUCID, xy, rcode):
             with open (refFile) as f:
                 refObj = json.load(f)
             if inputObj!= refObj:
-                #first_set = set(map(tuple, inputObj[0]))
-                #secnd_set = set(map(tuple, refObj[0]))
-                
+                if (type(inputObj[0])!=list):
+                    dif = []
+                    for i in range (0, len(inputObj)):
+                        list_1 = inputObj[i]
+                        list_2 = refObj[i]
+                        pairs = zip(list_1, list_2)
+                        noteq = ([(x, y) for x, y in pairs if x != y])
+                        dif.append (noteq)
+                else:
+                    dif = []
+                    dif.append ([j for j in inputObj if not j in refObj])
+
                 if (path.find('Char')>0):
-                    global bcharNoteq
-                    global bcharHUCID
-                    global bcharXY
-                    global bcharRegion
-                    global bcharDif
-                    bcharNoteq.append (ID)
-                    bcharHUCID.append (HUCID)
-                    bcharXY.append (xy)
-                    bcharRegion.append (rcode)
+                    #global bcharNoteq
+                    #global bcharHUCID
+                    #global bcharXY
+                    #global bcharRegion
+                    #global bcharDif
+                    #bcharNoteq.append (ID)
+                    #bcharHUCID.append (HUCID)
+                    #bcharXY.append (xy)
+                    #bcharRegion.append (rcode)
+                    fSummary = open('Summary.txt', 'a') 
+                    fSummary.write (str(ID)+ ':' + 'BChar not Equal'+ '\n')
+                    fSummary.write (str(ID)+ ':' + str(HUCID) + ' HUCID'+ '\n')
+                    fSummary.write (str(ID)+ ':' + str(xy) +' xy coordinates'+ '\n')
+                    fSummary.write (str(ID)+ ':' + str(rcode) +' State'+ '\n')
+                    fSummary.write (str(ID)+ ':' + str(dif) +'Difference between NewCall and Ref'+ '\n')
+                    fSummary.close ()
+                    #f.write (str(ID)+ ':' + str(HUCID) +' Missing Return for BDel')
                     #bcharDif.append(first_set.symmetric_difference(secnd_set))
                 else:
-                    global bdelNoteq
-                    global bdelHUCID
-                    global bdelXY
-                    global bdelRegion
-                    global bdelDif
-                    bdelNoteq.append (ID)            
-                    bdelHUCID.append (HUCID)
-                    bdelXY.append (xy)
-                    bdelRegion.append (rcode)
+                    #global bdelNoteq
+                    #global bdelHUCID
+                    #global bdelXY
+                    #global bdelRegion
+                    #global bdelDif
+                    #bdelNoteq.append (ID)            
+                    #bdelHUCID.append (HUCID)
+                    #bdelXY.append (xy)
+                    #bdelRegion.append (rcode)
                     #bdelDif.append(first_set.symmetric_difference(secnd_set))
-
+                    fSummary = open('Summary.txt', 'a') 
+                    fSummary.write (str(ID)+ ':' + 'BDel not Equal'+ '\n')
+                    fSummary.write (str(ID)+ ':' + str(HUCID) + ' HUCID'+ '\n')
+                    fSummary.write (str(ID)+ ':' + str(xy) +' xy coordinates'+ '\n')
+                    fSummary.write (str(ID)+ ':' + str(rcode) +' State'+ '\n')
+                    fSummary.write (str(ID)+ ':' + str(dif) +'Difference between Newcall and Ref'+ '\n')
+                    fSummary.close ()
                 WiMLogging.sm("Not equal Json's"+" "+ID)
                 writeToJSONFile(workingDir,ID+"_"+str(path.rsplit('/', 1)[-1]),inputObj) #Store in log folder
             else:
@@ -263,11 +295,19 @@ def compare(inputObj,path,ID, workingDir, HUCID, xy, rcode):
         else:
             #file not in reference folder, Create it
             if (path.find('Char')>0):
-                global bcharNew
-                bcharNew.append (ID)
+                fSummary = open('Summary.txt', 'a') 
+                #global f
+                #global bcharNew
+                #bcharNew.append (ID)
+                fSummary.write (str(ID)+ ':' + 'BChar New'+ '\n')
+                fSummary.close ()
             else:
-                global bdelNew
-                bdelNew.append (ID)    
+                fSummary = open('Summary.txt', 'a') 
+                #global f
+                #global bdelNew
+                #bdelNew.append (ID)    
+                fSummary.write (str(ID)+ ':' + 'BDel New'+ '\n')
+                fSummary.close()
             WiMLogging.sm("File not in reference folder"+" "+refFile)
             writeToJSONFile(path, ID,inputObj)
     except:
@@ -301,7 +341,7 @@ for row in file: #Query to invoke threads !
 
 queue_list.join() #Close mainthread after child threads done working
 
-WiMLogging.sm('********************************************************')
+"""WiMLogging.sm('********************************************************')
 WiMLogging.sm('***Testing Summary***') #Grab global variables and write them into log file
 WiMLogging.sm('Threads Invoked: '+ str(maxThreads))
 #WiMLogging.sm('User select wait time for server before next thread initialized: '+ str(TS))
@@ -319,9 +359,9 @@ WiMLogging.sm('BChar x,y coordinates:'+ str(bcharXY))
 WiMLogging.sm('BDel Regions:'+ str(bdelRegion))
 WiMLogging.sm('BChar Regions:'+ str(bcharRegion))
 WiMLogging.sm('BDel HUCID:'+ str(bdelHUCID))
-WiMLogging.sm('BChar HUCID:'+ str(bcharHUCID))
+WiMLogging.sm('BChar HUCID:'+ str(bcharHUCID)) """
 #WiMLogging.sm('BDel list dif:'+str(bdelDif))
 #WiMLogging.sm('BChar list dif:'+str(bcharDif))
-WiMLogging.sm('********************************************************')
+#WiMLogging.sm('********************************************************')
 
 print '*** Done'
