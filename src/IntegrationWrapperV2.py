@@ -19,7 +19,7 @@ import random
 from Queue import Queue
 
 #Set globals
-simulThreads = 2           #Timout interval. Timout threads every few intervals, to reduce load on server.
+simulThreads = 4           #Initial number of thread calls (N+1) because of 0
 queue_list = Queue()
 bdelMissing = []
 bcharMissing = []
@@ -90,18 +90,64 @@ def run_func(rcode, x,y, path,siteIdentifier,workingDir):
                 HUCID = response ['featurecollection'][1]['feature']['features'][0]['properties']['HUCID']
                 xy = [x,y]
             except:
-                pass                
+                k = 0
+                while k < 4 and resultBDel == None: #Try to call 4 times!
+                    print 'Attemting Basin Del Call: ' + str(siteIdentifier)
+                    time.sleep (1) #Wait seconds before next attempt
+                    try :
+                        response = sa.getBasin(rcode,x,y,4326) #Get feature collection
+                        responseBChar = sa.getBChar(rcode,response['workspaceID'])
+                        resultBChar = responseBChar['parameters'] #List of dictionaries
+                        resultBDel = response['featurecollection'][1]['feature']['features'][0]['geometry']['coordinates'][0] #List of lists
+                        HUCID = response ['featurecollection'][1]['feature']['features'][0]['properties']['HUCID']
+                        xy = [x,y]
+                        k = k+1
+                    except:
+                        resultBDel = None
+                        k = k+1
+                pass
+
+        ind = [] #Look for string (value) inside of the parameters. We should have 20 of them returned from the server.
+        c = 0
+        for i in range (0,len (resultBChar)):
+            tempind = str(resultBChar).find('value',c)
+            if tempind == -1:
+                break
+            c = tempind+1
+            ind.append (tempind)
+
+        if len(ind) < len (resultBChar):
+            try:
+                k = 0
+                while k < 4:
+                    try:
+                        time.sleep (1) #Wait seconds before next attempt
+                        print 'No value, Repeating Calls for BDel and BChar', siteIdentifier
+                        response = sa.getBasin(rcode,x,y,4326) #Get feature collection
+                        print 'Response', response
+                        responseBChar = sa.getBChar(rcode,response['workspaceID'])
+                        resultBChar = responseBChar['parameters'] #List of dictionaries
+                        resultBDel = response['featurecollection'][1]['feature']['features'][0]['geometry']['coordinates'][0] #List of lists
+                        HUCID = response['featurecollection'][1]['feature']['features'][0]['properties']['HUCID']
+                        xy = [x,y]
+                        k=k+1
+                    except:
+                        k=k+1
+            except:
+                pass
 
         if resultBDel == None:
             global bdelMissing
             bdelMissing.append(siteIdentifier)
             print "Finished: ", siteIdentifier
             raise Exception("{0} Failed to return from service BDel".format(siteIdentifier))
+        
         if resultBChar == None:
             global bcharMissing
             bcharMissing.append(siteIdentifier)
             print "Finished: ", siteIdentifier
             raise Exception ("{0} Failed to return from service Bchar".format(siteIdentifier))
+
         compare(resultBDel, path.get("bdel"),siteIdentifier,workingDir, HUCID, xy, rcode)
         compare(resultBChar, path.get("bchar"),siteIdentifier,workingDir, HUCID, xy, rcode)
         print "Finished: ", siteIdentifier
@@ -132,7 +178,7 @@ def compare(inputObj,path,ID, workingDir, HUCID, xy, rcode):
 
             while i < len(inputObj):
                 dic = (inputObj[i]) #Extract dictionary object i
-                for key in sorted(dic): #Sort it by keys and extract each key, next append to the dictionary
+                for key in sorted(dic): #Sort it by keys and extract each key, next, append to the dictionary
                     dictlist[i].append({key:str(dic[key])})
                 i += 1
             inputObj = dictlist #Return sorted list of lists instead of list of dictionaries for basin characteristics
@@ -187,30 +233,29 @@ def compare(inputObj,path,ID, workingDir, HUCID, xy, rcode):
         WiMLogging.sm("Error Comparing "+tb)
         writeToJSONFile(workingDir, ID+"_viaError",{'error':tb})
 
-#def compareDicts (x, y):
-   # pairs = zip(x, y)
-    #dif = [[k for k in x if x[k] != y[k]] for x, y in pairs if x != y]
-
 for i in range(maxThreads): #Run threads as daemon, so they close when finish
     worker = Thread(target=run, args=(i, queue_list,))
     worker.setDaemon(True)
     time.sleep(0.1)
     worker.start()
 
-threadsINI = threading.active_count()
+
+threadsINI = threading.active_count() 
 f1 = 0
-for row in file:
+for row in file: #Query to invoke threads !
     queue_list.put((row[rcode],row[x],row[y],refDir,row[uniqueID], workingDir))
+    print 'Calling Input: ', row[uniqueID]
     WiMLogging.sm('***Calling Input: '+ str(f1))
-    f1=f1+1
     if f1 == simulThreads:
-        while f1 == simulThreads and threading.active_count() == threadsINI:
+        while f1 == simulThreads and threading.active_count() == threadsINI: #Listener
             pass            #Inifite loop waiting for thread to be done with work
             #time.sleep (0.1) #There is a chance to run into error if two threads finished simultaniously within 0.1 or higher interval
         if threading.active_count()<threadsINI:
-            print ('Initialized')
-            f1 = simulThreads - (threadsINI-threading.active_count ())
+            print ('Initialized') #Each initialized statement should follow Finished one
+            f1 = simulThreads - (threadsINI-threading.active_count ())+1
             threadsINI = threading.active_count ()
+    else:
+        f1=f1+1
 
 queue_list.join() #Close mainthread after child threads done working
 
