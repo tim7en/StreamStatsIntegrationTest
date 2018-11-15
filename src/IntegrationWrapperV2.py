@@ -88,11 +88,11 @@ def run_func(rcode, x,y, path,siteIdentifier,workingDir):
                     resultBChar = responseBChar['parameters'] #List of dictionaries
                     try:
                         resultBDel = response['featurecollection'][1]['feature']['features'][0]['geometry']['coordinates'][0] #List of lists
+                        HUCID = response ['featurecollection'][1]['feature']['features'][0]['properties']['HUCID']
+                        xy = [x,y]
                     except:
                         resultBDel = None
                         resultBChar = None
-                    HUCID = response ['featurecollection'][1]['feature']['features'][0]['properties']['HUCID']
-                    xy = [x,y]
                 
                 else:
                     k = 0
@@ -103,21 +103,21 @@ def run_func(rcode, x,y, path,siteIdentifier,workingDir):
                             response = sa.getBasin(rcode,x,y,4326) #Get feature collection
                             if response == None:
                                 k = k+1
-                                pass
                             elif len(response) == 0:
                                 k = k+1
-                                pass
                             else:
                                 responseBChar = sa.getBChar(rcode,response['workspaceID'])
                                 resultBChar = responseBChar['parameters'] #List of dictionaries
                                 try:
                                     resultBDel = response['featurecollection'][1]['feature']['features'][0]['geometry']['coordinates'][0] #List of lists
+                                    HUCID = response ['featurecollection'][1]['feature']['features'][0]['properties']['HUCID']
+                                    xy = [x,y]
+                                    k = 4
                                 except:
-                                    resultBChar = None
+                                    k = k+1
                                     resultBDel = None
-                                HUCID = response ['featurecollection'][1]['feature']['features'][0]['properties']['HUCID']
-                                xy = [x,y]
-                                k = 4
+                                    resultBChar = None
+                                    pass
                         except:
                             resultBDel = None
                             resultBChar = None
@@ -139,45 +139,44 @@ def run_func(rcode, x,y, path,siteIdentifier,workingDir):
         
         if resultBChar !=None:
             ind = findStr (resultBChar, 'value')
+            l = len (resultBChar)
         else:
-            ind = [0] * 1
+            ind = 0
+            l = 1
         
-        if len(ind) < len (resultBChar):
-            try:
-                k = 0
-                while k < 4:
-                    try:
-                        time.sleep (1) #Wait seconds before next attempt
-                        print 'No value, Repeating Calls for BDel and BChar', siteIdentifier
-                        response = sa.getBasin(rcode,x,y,4326) #Get feature collection
-                        if len(response) == 0:
-                            k=k+1
-                            pass
-                        elif (response == None):
-                            k= k +1
-                            pass
-                        else:
-                            print 'No val', (len(response))
-                            responseBChar = sa.getBChar(rcode, response['workspaceID'])
-                            resultBChar = responseBChar['parameters'] #List of dictionaries
-                            resultBDel = response['featurecollection'][1]['feature']['features'][0]['geometry']['coordinates'][0] #List of lists
-                            HUCID = response['featurecollection'][1]['feature']['features'][0]['properties']['HUCID']
-                            xy = [x,y]
-                            ind = findStr (resultBChar, 'value')
-                            if (len(ind)<len(resultBChar)):
-                                k = k+1
-                            else:
-                                k = 4
-                    except:
-                        resultBDel = None
-                        resultBChar = None
+        if ind < l:
+            k = 0
+            while k < 4:
+                try:
+                    time.sleep (1) #Wait seconds before next attempt
+                    print 'No value, Repeating Calls for BDel and BChar', siteIdentifier
+                    response = sa.getBasin(rcode,x,y,4326) #Get feature collection
+                    if len(response) == 0:
                         k=k+1
-
-                if (len(ind)<len(resultBChar)):
+                        pass
+                    elif (response == None):
+                        k= k +1
+                        pass
+                    else:
+                        print 'No val', (len(response))
+                        responseBChar = sa.getBChar(rcode, response['workspaceID'])
+                        resultBChar = responseBChar['parameters'] #List of dictionaries
+                        resultBDel = response['featurecollection'][1]['feature']['features'][0]['geometry']['coordinates'][0] #List of lists
+                        HUCID = response['featurecollection'][1]['feature']['features'][0]['properties']['HUCID']
+                        xy = [x,y]
+                        ind = findStr (resultBChar, 'value')
+                        if (len(ind)<len(resultBChar)):
+                            k = k+1
+                        else:
+                            k = 4
+                except:
                     resultBDel = None
                     resultBChar = None
-            except:
-                pass
+                    k=k+1
+
+            if (len(ind)<len(resultBChar)):
+                resultBDel = None
+                resultBChar = None
 
         if resultBDel == None:
             global bdelMissing
