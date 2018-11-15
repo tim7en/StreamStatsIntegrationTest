@@ -61,7 +61,6 @@ file.pop(0)#removes the header
 startTime = time.time()
 WiMLogging.init(os.path.join(workingDir,"Temp"),"Integration.log")
 
-
 row_count = sum(1 for row in file) #Total number of sites
 maxThreads = row_count #Equal to the number of sites
 
@@ -84,38 +83,65 @@ def run_func(rcode, x,y, path,siteIdentifier,workingDir):
         with StreamStatsServiceAgent() as sa: 
             try:
                 response = sa.getBasin(rcode,x,y,4326) #Get feature collection
-                responseBChar = sa.getBChar(rcode,response['workspaceID'])
-                resultBChar = responseBChar['parameters'] #List of dictionaries
-                resultBDel = response['featurecollection'][1]['feature']['features'][0]['geometry']['coordinates'][0] #List of lists
-                HUCID = response ['featurecollection'][1]['feature']['features'][0]['properties']['HUCID']
-                xy = [x,y]
-            except:
-                k = 0
-                while k < 4 and resultBDel == None: #Try to call 4 times!
-                    print 'Attemting Basin Del Call: ' + str(siteIdentifier)
-                    time.sleep (1) #Wait seconds before next attempt
-                    try :
-                        response = sa.getBasin(rcode,x,y,4326) #Get feature collection
-                        responseBChar = sa.getBChar(rcode,response['workspaceID'])
-                        resultBChar = responseBChar['parameters'] #List of dictionaries
+                if response != None and len(response)>0:
+                    responseBChar = sa.getBChar(rcode,response['workspaceID'])
+                    resultBChar = responseBChar['parameters'] #List of dictionaries
+                    try:
                         resultBDel = response['featurecollection'][1]['feature']['features'][0]['geometry']['coordinates'][0] #List of lists
-                        HUCID = response ['featurecollection'][1]['feature']['features'][0]['properties']['HUCID']
-                        xy = [x,y]
-                        k = k+1
                     except:
                         resultBDel = None
-                        k = k+1
+                        resultBChar = None
+                    HUCID = response ['featurecollection'][1]['feature']['features'][0]['properties']['HUCID']
+                    xy = [x,y]
+                
+                else:
+                    k = 0
+                    while k < 4: #Try to call 4 times!
+                        print 'Attempting Basin Del Call: ' + str(siteIdentifier)
+                        time.sleep (1) #Wait seconds before next attempt
+                        try :
+                            response = sa.getBasin(rcode,x,y,4326) #Get feature collection
+                            if response == None:
+                                k = k+1
+                                pass
+                            elif len(response) == 0:
+                                k = k+1
+                                pass
+                            else:
+                                responseBChar = sa.getBChar(rcode,response['workspaceID'])
+                                resultBChar = responseBChar['parameters'] #List of dictionaries
+                                try:
+                                    resultBDel = response['featurecollection'][1]['feature']['features'][0]['geometry']['coordinates'][0] #List of lists
+                                except:
+                                    resultBChar = None
+                                    resultBDel = None
+                                HUCID = response ['featurecollection'][1]['feature']['features'][0]['properties']['HUCID']
+                                xy = [x,y]
+                                k = 4
+                        except:
+                            resultBDel = None
+                            resultBChar = None
+                            k = k+1
+            except:
                 pass
-
-        ind = [] #Look for string (value) inside of the parameters. We should have 20 of them returned from the server.
-        c = 0
-        for i in range (0,len (resultBChar)):
-            tempind = str(resultBChar).find('value',c)
-            if tempind == -1:
-                break
-            c = tempind+1
-            ind.append (tempind)
-
+        
+        def findStr (x,y):
+            resultBChar = x
+            ind = [] #Look for string (value) inside of the parameters. We should have 20 of them returned from the server.
+            c = 0
+            for i in range (0,len (resultBChar)):
+                tempind = str(resultBChar).find(str(y),c)
+                if tempind == -1:
+                    break
+                c = tempind+1
+                ind.append (tempind)
+            return (ind)
+        
+        if resultBChar !=None:
+            ind = findStr (resultBChar, 'value')
+        else:
+            ind = [0] * 1
+        
         if len(ind) < len (resultBChar):
             try:
                 k = 0
@@ -124,15 +150,32 @@ def run_func(rcode, x,y, path,siteIdentifier,workingDir):
                         time.sleep (1) #Wait seconds before next attempt
                         print 'No value, Repeating Calls for BDel and BChar', siteIdentifier
                         response = sa.getBasin(rcode,x,y,4326) #Get feature collection
-                        print 'Response', response
-                        responseBChar = sa.getBChar(rcode,response['workspaceID'])
-                        resultBChar = responseBChar['parameters'] #List of dictionaries
-                        resultBDel = response['featurecollection'][1]['feature']['features'][0]['geometry']['coordinates'][0] #List of lists
-                        HUCID = response['featurecollection'][1]['feature']['features'][0]['properties']['HUCID']
-                        xy = [x,y]
-                        k=k+1
+                        if len(response) == 0:
+                            k=k+1
+                            pass
+                        elif (response == None):
+                            k= k +1
+                            pass
+                        else:
+                            print 'No val', (len(response))
+                            responseBChar = sa.getBChar(rcode, response['workspaceID'])
+                            resultBChar = responseBChar['parameters'] #List of dictionaries
+                            resultBDel = response['featurecollection'][1]['feature']['features'][0]['geometry']['coordinates'][0] #List of lists
+                            HUCID = response['featurecollection'][1]['feature']['features'][0]['properties']['HUCID']
+                            xy = [x,y]
+                            ind = findStr (resultBChar, 'value')
+                            if (len(ind)<len(resultBChar)):
+                                k = k+1
+                            else:
+                                k = 4
                     except:
+                        resultBDel = None
+                        resultBChar = None
                         k=k+1
+
+                if (len(ind)<len(resultBChar)):
+                    resultBDel = None
+                    resultBChar = None
             except:
                 pass
 
@@ -141,15 +184,15 @@ def run_func(rcode, x,y, path,siteIdentifier,workingDir):
             bdelMissing.append(siteIdentifier)
             print "Finished: ", siteIdentifier
             raise Exception("{0} Failed to return from service BDel".format(siteIdentifier))
-        
+        else:
+            compare(resultBDel, path.get("bdel"),siteIdentifier,workingDir, HUCID, xy, rcode)
         if resultBChar == None:
             global bcharMissing
             bcharMissing.append(siteIdentifier)
             print "Finished: ", siteIdentifier
             raise Exception ("{0} Failed to return from service Bchar".format(siteIdentifier))
-
-        compare(resultBDel, path.get("bdel"),siteIdentifier,workingDir, HUCID, xy, rcode)
-        compare(resultBChar, path.get("bchar"),siteIdentifier,workingDir, HUCID, xy, rcode)
+        else:
+            compare(resultBChar, path.get("bchar"),siteIdentifier,workingDir, HUCID, xy, rcode)
         print "Finished: ", siteIdentifier
     
     except:
