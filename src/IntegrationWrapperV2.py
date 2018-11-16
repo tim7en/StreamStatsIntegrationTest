@@ -35,7 +35,7 @@ config = Config(json.load(open(os.path.join(os.path.dirname(__file__), 'config.j
 workingDir = Shared.GetWorkspaceDirectory(config["workingdirectory"])
 
 
-
+#Used for command line
 parser = argparse.ArgumentParser()
 parser.add_argument("-file", help="specifies csv file location including gage lat/long and comid's to estimate", type=str, #Use the following LAT/LON pour point
                     default = 'D:\ClientData\InputCoordinates.csv') #Change to the location of the csv file
@@ -100,14 +100,14 @@ def run_func(rcode, x,y, path, siteIdentifier, workingDir):
         try:
             response = sa.getBasin(rcode,x,y,4326) #Get feature collection
             k = 0
-            f1 = 0
-            f2 = 0
-            f3 = 0
+            f1 = 0 #Flag 1  
+            f2 = 0 #Flag 2 
+            f3 = 0 #Flag 3
 
 
             #Catch if basin del returned error and flag it
             try:
-                print (len(response['featurecollection'][1]['feature']['features'][0]['geometry']['coordinates'][0]))
+                len(response['featurecollection'][1]['feature']['features'][0]['geometry']['coordinates'][0])
             except:
                 f1 = 1
 
@@ -116,7 +116,11 @@ def run_func(rcode, x,y, path, siteIdentifier, workingDir):
             while ((response == None or f1 == 1) and f2 < 4):
                 print 'New Attempt, while loop 1', siteIdentifier
                 response = sa.getBasin(rcode,x,y,4326) #Get feature collection
-                f2 = f2+1
+                try:
+                    len(response['featurecollection'][1]['feature']['features'][0]['geometry']['coordinates'][0])
+                    f1 = 0
+                except:
+                    f2 = f2+1
 
             
             if (response !=None and f1 == 0):
@@ -128,15 +132,15 @@ def run_func(rcode, x,y, path, siteIdentifier, workingDir):
                         resultBDel = response['featurecollection'][1]['feature']['features'][0]['geometry']['coordinates'][0] #List of lists
                         HUCID = response ['featurecollection'][1]['feature']['features'][0]['properties']['HUCID']
                         xy = [x,y]
-                        ind = findStr(resultBChar,'value')
-                        if (len(ind)<len(resultBChar)):
+                        ind = findStr(resultBChar,'value') 
+                        if (len(ind)<len(resultBChar)): #Call basin characteristics if there any missing, pass parameter code
                             k=k+1
                         elif k == 4:
                             f3=1
                         else:
                             f3=1
                         if (k>0):
-                            response = sa.getBasin(rcode,x,y,4326)
+                            response = sa.getBasin(rcode,x,y,4326) #Recursive call  (A(5/5)|B(22/24) WID - 1 call again (WID =2) ; A(5/5)|B(24/24) WID -2)
                             print 'New Attempt, While loop 2, Inner', siteIdentifier
                     except:
                         resultBDel = None
@@ -238,6 +242,14 @@ def compare(inputObj,path,ID, workingDir, HUCID, xy, rcode): #Compare json txt f
                 WiMLogging.sm("Not equal Json's"+" "+ID)
                 writeToJSONFile(workingDir,ID+"_"+str(path.rsplit('/', 1)[-1]),inputObj) #Store in log folder
             else:
+                if (path.find('Char')>0):
+                    fSummary = open('Summary.txt', 'a') 
+                    fSummary.write (str(ID)+ ':' + 'BChar Equal Jsons' + '\n')
+                    fSummary.close ()
+                else:
+                    fSummary = open('Summary.txt', 'a') 
+                    fSummary.write (str(ID)+ ':' + 'BDel Equal Jsons' + '\n')
+                    fSummary.close ()
                 tb = traceback.format_exc()
                 WiMLogging.sm("Equal Json's"+" "+ID+" "+ tb) #Don't create file
         else:
@@ -256,6 +268,14 @@ def compare(inputObj,path,ID, workingDir, HUCID, xy, rcode): #Compare json txt f
         WiMLogging.sm("Error Comparing "+tb)
         writeToJSONFile(workingDir, ID+"_viaError",{'error':tb})
 
+'''def getBasin2 (x,y,region,ID, f=0): #Recursive calling 
+    try:
+        if (f>4):
+            return None
+        else:
+            #Do smth
+    except:
+        getBasin2 (x,y,region,ID, f+=1)'''
 
 
 #Main thread
@@ -269,21 +289,21 @@ for i in range(maxThreads): #Run threads as daemon, so they close when finish
 
 #Global var counting number of active threads
 threadsINI = threading.active_count() 
-f1 = 0
+f = 0
 for row in file: #Query to invoke threads !
     print 'Calling Input: ', row[uniqueID]
     queue_list.put((row[rcode],row[x],row[y],refDir,row[uniqueID], workingDir))
-    WiMLogging.sm('***Calling Input: '+ str(f1))
-    if f1 == simulThreads:
-        while f1 == simulThreads and threading.active_count() == threadsINI: #Listener
+    WiMLogging.sm('***Calling Input: '+ str(f))
+    if f == simulThreads:
+        while f == simulThreads and threading.active_count() == threadsINI: #Listener
             pass            #Inifite loop waiting for thread to be done with work
-            #time.sleep (0.1) #There is a chance to run into error if two threads finished simultaniously within 0.1 or higher interval
+            time.sleep (1) #There is a chance to run into error if two threads finished simultaniously within 0.1 or higher interval
         if threading.active_count()<threadsINI:
             print ('Initialized') #Each initialized statement should follow Finished one
-            f1 = simulThreads - (threadsINI-threading.active_count ())+1
+            f = simulThreads - (threadsINI-threading.active_count ())+1
             threadsINI = threading.active_count ()
     else:
-        f1=f1+1
+        f=f+1
 
 queue_list.join() #Close mainthread after child threads done working
 
