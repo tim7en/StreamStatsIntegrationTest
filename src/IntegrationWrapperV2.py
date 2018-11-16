@@ -100,22 +100,35 @@ def run_func(rcode, x,y, path, siteIdentifier, workingDir):
         try:
             response = sa.getBasin(rcode,x,y,4326) #Get feature collection
             k = 0
+            f1 = 0
             f2 = 0
             f3 = 0
 
-            while ((response == None or len (response) == 0) and f2 < 4):
+
+            #Catch if basin del returned error and flag it
+            try:
+                print (len(response['featurecollection'][1]['feature']['features'][0]['geometry']['coordinates'][0]))
+            except:
+                f1 = 1
+
+
+            #Check the flag, if flag is active, attempt to get basin del one more time
+            while ((response == None or f1 == 1) and f2 < 4):
+                print 'New Attempt, while loop 1', siteIdentifier
                 response = sa.getBasin(rcode,x,y,4326) #Get feature collection
                 f2 = f2+1
+
             
-            if (response !=None and len(response)>0):
+            if (response !=None and f1 == 0):
                 while (f3 == 0 and (response!= None or len(response)>0)):
                     try:
+                        print 'While loop 2, Outer', siteIdentifier
                         responseBChar = sa.getBChar(rcode,response['workspaceID'])
                         resultBChar = responseBChar['parameters'] #List of dictionaries
                         resultBDel = response['featurecollection'][1]['feature']['features'][0]['geometry']['coordinates'][0] #List of lists
                         HUCID = response ['featurecollection'][1]['feature']['features'][0]['properties']['HUCID']
                         xy = [x,y]
-                        ind = findStr (resultBChar, 'value')
+                        ind = findStr(resultBChar,'value')
                         if (len(ind)<len(resultBChar)):
                             k=k+1
                         elif k == 4:
@@ -124,12 +137,16 @@ def run_func(rcode, x,y, path, siteIdentifier, workingDir):
                             f3=1
                         if (k>0):
                             response = sa.getBasin(rcode,x,y,4326)
+                            print 'New Attempt, While loop 2, Inner', siteIdentifier
                     except:
                         resultBDel = None
                         resultBChar = None
-                if (response ==None or len(response) == 0):
+                        f3 = 1
+                if (resultBDel == None):
+                    print "Finished: ", siteIdentifier
                     raise Exception("{0} Failed to return from service BDel".format(siteIdentifier))
             else:
+                print "Finished: ", siteIdentifier
                 raise Exception("{0} Failed to return from service BDel".format(siteIdentifier))   
         except:
             resultBChar = None
@@ -137,7 +154,7 @@ def run_func(rcode, x,y, path, siteIdentifier, workingDir):
 
         if resultBDel == None:
             fSummary = open('Summary.txt', 'a') 
-            fSummary.write (str(siteIdentifer)+ ':' + ' Missing Return for BDel'+ '\n')
+            fSummary.write (str(siteIdentifier)+ ':' + ' Missing Return for BDel'+ '\n')
             fSummary.close ()
             print "Finished: ", siteIdentifier
             raise Exception("{0} Failed to return from service BDel".format(siteIdentifier))
@@ -147,7 +164,7 @@ def run_func(rcode, x,y, path, siteIdentifier, workingDir):
 
         if resultBChar == None:
             fSummary = open('Summary.txt', 'a') 
-            fSummary.write (str(siteIdentifer)+ ':' + ' Missing Return for BChar'+ '\n')
+            fSummary.write (str(siteIdentifier)+ ':' + ' Missing Return for BChar'+ '\n')
             fSummary.close ()
             print "Finished: ", siteIdentifier
             raise Exception ("{0} Failed to return from service Bchar".format(siteIdentifier))
