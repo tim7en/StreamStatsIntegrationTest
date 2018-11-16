@@ -40,7 +40,7 @@ class StreamStatsServiceAgent(object):
         self.BaseUrl = Config()["StreamStats"]["baseurl"]
         self.resources = Config()["StreamStats"]["resources"]
 
-        self._sm("initialized StreamStatsServiceAgent")
+        #self._sm("initialized StreamStatsServiceAgent")
     def __enter__(self):
         return self
 
@@ -97,7 +97,11 @@ class StreamStatsServiceAgent(object):
     #region Methods
     def Execute(self, resource):
         try:
-            url = self.BaseUrl + resource
+            if self.BaseUrl == None:
+                url = 'https://test.streamstats.usgs.gov' + resource
+            else:
+                url = self.BaseUrl + resource
+            #print url
             #below is temporary for batch jkn
             try:
                 response = requests.get(url)
@@ -120,7 +124,7 @@ class StreamStatsServiceAgent(object):
 
     def _sm(self,msg,type="INFO", errorID=0):        
         WiMLogging.sm(msg,type="INFO", errorID=0)
-        print type, msg
+        #print type, msg
 
     #endregion
     #region Helper Methods
