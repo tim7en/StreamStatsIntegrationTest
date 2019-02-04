@@ -20,7 +20,7 @@ from Queue import Queue
 
 
 #Initial number of thread calls will be (N+1)
-simulThreads = 3           
+simulThreads = 0           
 queue_list = Queue()
 
 
@@ -105,13 +105,6 @@ def run_func(rcode, x,y, path, siteIdentifier, workingDir):
             f3 = 0 #Flag 3
 
 
-            #Catch if basin del returned error and flag it
-            try:
-                len(response['featurecollection'][1]['feature']['features'][0]['geometry']['coordinates'][0])
-            except:
-                f1 = 1
-
-
             #Check the flag, if flag is active, attempt to get basin del one more time
             #After 4 attempts, if response still none, it will break the loop since f2 = 4. 0 response result in print, failed to return from BDEL
             while ((response == None or f1 == 1 or len(response)<1) and f2 < 4):
@@ -127,7 +120,7 @@ def run_func(rcode, x,y, path, siteIdentifier, workingDir):
             if (response !=None and f1 == 0): #if the flag to get.bdel set to 0 and there is a response
                 while (f3 == 0 and (response!= None or len(response)>0)):
                     try:
-                        print 'While loop 2, Outer', siteIdentifier
+                        print 'Trying to get basin chars, there was a response for basin del', siteIdentifier
                         responseBChar = sa.getBChar (rcode,response['workspaceID']) #get basin characteristics from the server
                         resultBChar = responseBChar['parameters'] #List of dictionaries
                         resultBDel = response['featurecollection'][1]['feature']['features'][0]['geometry']['coordinates'][0] #List of lists
@@ -140,19 +133,24 @@ def run_func(rcode, x,y, path, siteIdentifier, workingDir):
                         #If new basin deliniation parameters satisfying conditions and basin characteristics satisfying conditions, update basin deliniation and basin characteristics.
                         #f3 is my flag for N number of calls
 
-                        if (len(ind)<len(resultBChar)): #Call basin characteristics if there any missing,  pass parameter code
+
+                        if (len(ind)<len(resultBChar)): #Call basin characteristics if there any missing. If everything is ok, continue.
+                            print ('something is missing from basin characteristics')
                             if (k == 0):
                                 responseBDel = resultBDel #save initial
                                 responseBCbar = resultBChar
                             k=k+1
-                        elif k == 4:
+                        else:
+                            f3 = 1
+
+                        if k == 4:
                             resultBDel = responseBDel #if we reached the end, and nothing changed, reset to inial and continue
                             resultBChar = responseBCbar
                             f3=1
-                        else: #Else, keep newly updated values and break the loop
-                            f3=1
+
+
                         if (k>0):
-                            responseNew = sa.getBasin(rcode,x,y,4326) #Recursive call  (A(5/5)|B(22/24) WID - 1 call again (WID =2) ; A(5/5)|B(24/24) WID -2)
+                            responseNew = sa.getBasin(rcode,x,y,4326) #Recursive call
                             #if response is null, reset to default one, else reset to new
                             if (responseNew !=None):
                                 try:
@@ -163,24 +161,28 @@ def run_func(rcode, x,y, path, siteIdentifier, workingDir):
                             if (responseNew != None and f2 == 0): #if there is a response, and flag got tagged
                                 response = responseNew 
                             else:
-                                print ('BDel return none')
+                                print 'BDel return none'
+
                             print 'New Attempt, While loop 2, Inner', siteIdentifier
 
-
-
                     except:
-                        resultBDel = None
+                        print 'inside of exception'
+                        resultBDel = response['featurecollection'][1]['feature']['features'][0]['geometry']['coordinates'][0]
                         resultBChar = None
                         f3 = 1
-                if (resultBDel == None):
+
+                if (resultBChar == None):
                     print "Finished: ", siteIdentifier
-                    raise Exception("{0} Failed to return from service BDel".format(siteIdentifier))
+                    raise Exception("{0} Failed to return from service Bchar".format(siteIdentifier))
+
             else:
+                print 'failed to return from service BDEL'
                 print "Finished: ", siteIdentifier
                 raise Exception("{0} Failed to return from service BDel".format(siteIdentifier))   
+
         except:
-            resultBChar = None
             resultBDel = None
+            resultBChar = None
 
         if resultBDel == None:
             fSummary = open('Summary.txt', 'a') 
@@ -192,7 +194,7 @@ def run_func(rcode, x,y, path, siteIdentifier, workingDir):
             compare(resultBDel, path.get("bdel"),siteIdentifier,workingDir, HUCID, xy, rcode)
 
 
-        if resultBChar == None:
+        if (resultBChar == None or (len(ind)<len(resultBChar))):
             fSummary = open('Summary.txt', 'a') 
             fSummary.write (str(siteIdentifier)+ ':' + ' Missing Return for BChar'+ '\n')
             fSummary.close ()
