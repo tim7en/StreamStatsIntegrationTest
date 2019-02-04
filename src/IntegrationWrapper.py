@@ -12,13 +12,13 @@ from WIMLib import WiMLogging
 from WIMLib import Shared
 from WIMLib.Config import Config
 from ServiceAgents.StreamStatsServiceAgent import StreamStatsServiceAgent
-
 from threading import Thread
-
 import time
 import random
 from Queue import Queue
 
+#Global variable to store values of id for calls with missing DA
+bdelMissing = []
 #endregion
 
 ##-------1---------2---------3---------4---------5---------6---------7---------8
@@ -28,7 +28,7 @@ from Queue import Queue
 
 class IntigrationTest(object):
     def __init__(self):
-        self.maxThreads = 5
+        self.maxThreads = 3
         try:
             self.config = Config(json.load(open(os.path.join(os.path.dirname(__file__), 'config.json'))))
             self.workingDir = Shared.GetWorkspaceDirectory(self.config["workingdirectory"])
@@ -55,14 +55,23 @@ class IntigrationTest(object):
             WiMLogging.init(os.path.join(self.workingDir,"Temp"),"Integration.log")
             self._sm("Starting routine")
 
-            queue= Queue()  
+            row_count = sum(1 for row in file) 
+
+            queue= Queue(row_count)
+            if (self.maxThreads > row_count):
+                if (int(row_count/2) == 0):
+                    self.maxThreads = 1
+                else:
+                    self.maxThreads = int(row_count/2)
+
             for thrd in range(self.maxThreads):
-                worker = ThreadWorker(queue)
-                worker.start()
-
+                worker = ThreadWorker(queue) #Threadworker accepts object pointer by queue
+                worker.start() #Initialize threadworkers (5)
+                
             for row in file:
-                queue.put((row[rcode],row[x],row[y],refDir,row[uniqueID], self.workingDir))
-
+                #if (row is None): #If the que is empty break the loop
+                #    print ("Empty")
+                queue.put((row[rcode],row[x],row[y],refDir,row[uniqueID], self.workingDir)) #Fill in memory pointer by queue with objects
 
             self._sm('Finished.  Total time elapsed:', str(round((time.time()- startTime)/60, 2)), 'minutes')
 
@@ -77,10 +86,11 @@ class IntigrationTest(object):
 
 
 class ThreadWorker(Thread):
+
     def __init__(self, queue):
         Thread.__init__(self)
         self.queue = queue
-        
+    
     def run(self):
         try:            
             while True:
@@ -112,8 +122,13 @@ class ThreadWorker(Thread):
                 except:
                     pass                
 
-            if resultBDel == None: raise Exception("{0} Failed to return from service BDel".format(siteIdentifier))
-            if resultBChar == None: raise Exception ("{0} Failed to return from service Bchar".format(siteIdentifier))
+            if resultBDel == None:
+                global bdelMissing
+                bdelMissing.append(siteIdentifier)
+                print (bdelMissing)
+                raise Exception("{0} Failed to return from service BDel".format(siteIdentifier))
+            if resultBChar == None: 
+                raise Exception ("{0} Failed to return from service Bchar".format(siteIdentifier))
             self._compare(resultBDel, path.get("bdel"),siteIdentifier,workingDir)
             self._compare(resultBChar, path.get("bchar"),siteIdentifier,workingDir)
         except:
