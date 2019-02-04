@@ -68,9 +68,9 @@ maxThreads = row_count #Equal to the number of sites
 
 #Main function that run by thread
 def run(i, q):
-    rcode,x,y,refdir,iden,workspace = q.get() #Target function for threads to run
+    rcode,x,y,refdir,iden,workspace = q.get() #Target function for threads to run to get sites
     try:
-        run_func(rcode,x,y,refdir,iden,workspace)
+        run_func(rcode,x,y,refdir,iden,workspace) #main function for threads to run to get data from server
     except:
         tb = traceback.format_exc()
         WiMLogging.sm("Error w/ run "+ tb)
@@ -113,35 +113,61 @@ def run_func(rcode, x,y, path, siteIdentifier, workingDir):
 
 
             #Check the flag, if flag is active, attempt to get basin del one more time
-            while ((response == None or f1 == 1) and f2 < 4):
+            #After 4 attempts, if response still none, it will break the loop since f2 = 4. 0 response result in print, failed to return from BDEL
+            while ((response == None or f1 == 1 or len(response)<1) and f2 < 4):
                 print 'New Attempt, while loop 1', siteIdentifier
                 response = sa.getBasin(rcode,x,y,4326) #Get feature collection
                 try:
-                    len(response['featurecollection'][1]['feature']['features'][0]['geometry']['coordinates'][0])
+                    len(response['featurecollection'][1]['feature']['features'][0]['geometry']['coordinates'][0]) #if coordinates exist, reset flag to 0
                     f1 = 0
                 except:
                     f2 = f2+1
 
             
-            if (response !=None and f1 == 0):
+            if (response !=None and f1 == 0): #if the flag to get.bdel set to 0 and there is a response
                 while (f3 == 0 and (response!= None or len(response)>0)):
                     try:
                         print 'While loop 2, Outer', siteIdentifier
-                        responseBChar = sa.getBChar(rcode,response['workspaceID'])
+                        responseBChar = sa.getBChar (rcode,response['workspaceID']) #get basin characteristics from the server
                         resultBChar = responseBChar['parameters'] #List of dictionaries
                         resultBDel = response['featurecollection'][1]['feature']['features'][0]['geometry']['coordinates'][0] #List of lists
                         HUCID = response ['featurecollection'][1]['feature']['features'][0]['properties']['HUCID']
                         xy = [x,y]
-                        ind = findStr(resultBChar,'value') 
-                        if (len(ind)<len(resultBChar)): #Call basin characteristics if there any missing, pass parameter code
+                        ind = findStr(resultBChar,'value') #count, how many values returned for basin characteristics for a unique (workspace id) ?
+
+                        #If values returned for basin characteristics for that workspace id not satisfiying condition of equality, call function
+                        #for basin deliniation one more time, get workspace id and call function for basin characteristics. Store previous basin deliniation parameters.
+                        #If new basin deliniation parameters satisfying conditions and basin characteristics satisfying conditions, update basin deliniation and basin characteristics.
+                        #f3 is my flag for N number of calls
+
+                        if (len(ind)<len(resultBChar)): #Call basin characteristics if there any missing,  pass parameter code
+                            if (k == 0):
+                                responseBDel = resultBDel #save initial
+                                responseBCbar = resultBChar
                             k=k+1
                         elif k == 4:
+                            resultBDel = responseBDel #if we reached the end, and nothing changed, reset to inial and continue
+                            resultBChar = responseBCbar
                             f3=1
-                        else:
+                        else: #Else, keep newly updated values and break the loop
                             f3=1
                         if (k>0):
-                            response = sa.getBasin(rcode,x,y,4326) #Recursive call  (A(5/5)|B(22/24) WID - 1 call again (WID =2) ; A(5/5)|B(24/24) WID -2)
+                            responseNew = sa.getBasin(rcode,x,y,4326) #Recursive call  (A(5/5)|B(22/24) WID - 1 call again (WID =2) ; A(5/5)|B(24/24) WID -2)
+                            #if response is null, reset to default one, else reset to new
+                            if (responseNew !=None):
+                                try:
+                                    len(responseNew['featurecollection'][1]['feature']['features'][0]['geometry']['coordinates'][0]) #if coordinates exist, reset flag to 0
+                                    f2 = 0
+                                except:
+                                    f2 = f2+1
+                            if (responseNew != None and f2 == 0): #if there is a response, and flag got tagged
+                                response = responseNew 
+                            else:
+                                print ('BDel return none')
                             print 'New Attempt, While loop 2, Inner', siteIdentifier
+
+
+
                     except:
                         resultBDel = None
                         resultBChar = None
