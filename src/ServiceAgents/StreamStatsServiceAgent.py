@@ -25,10 +25,11 @@ from WIMLib.Config import Config
 import os
 import glob, sys, os
 import requests
+from requests.exceptions import ConnectionError
 import certifi
 import string
 import traceback
-from  WIMLib import WiMLogging
+from  WIMLib.WiMLogging import WiMLogging
 import re
 
 from datetime import date, timedelta
@@ -61,7 +62,7 @@ class StreamStatsServiceAgent(object):
         except:
             tb = traceback.format_exc()
             self._sm("StreamStatsService getBasin Error "+tb, "ERROR")
-
+            
     def getBChar(self,region,workspaceID):
         try:
             resource = self.resources["basinChar"].format(region,workspaceID,True)
@@ -105,17 +106,17 @@ class StreamStatsServiceAgent(object):
             #below is temporary for batch jkn
             try:
                 response = requests.get(url)
-                return response.json()
+                return [response.json(), response.headers]
             except:
                 self._sm("Error: file " + os.path.basename(resource) + " does not exist within Gages iii", 1.62, 'ERROR')
                 return ''
-        except requests.exceptions as e:
+        except requests.exceptions.RequestException as e:
             if hasattr(e, 'reason'):
-                self._sm("Error:, failed to reach a server " + e.reason.strerror, 1.54, 'ERROR')
+                self._sm("Error:, failed to reach a server " + e.strerror, 1.54, 'ERROR')
                 return ""
 
             elif hasattr(e, 'code'):
-                self._sm("Error: server couldn't fullfill request " + e.code, 1.58, 'ERROR')
+                self._sm("Error: server couldn't fullfill request " + e.strerror, 1.58, 'ERROR')
                 return ''
         except:
             tb = traceback.format_exc()            
@@ -123,7 +124,7 @@ class StreamStatsServiceAgent(object):
             return ""    
 
     def _sm(self,msg,type="INFO", errorID=0):        
-        WiMLogging.sm(msg,type="INFO", errorID=0)
+        WiMLogging().sm(msg,type="INFO", errorID=0)
         #print type, msg
 
     #endregion
