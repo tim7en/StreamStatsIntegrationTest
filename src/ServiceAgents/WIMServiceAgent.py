@@ -26,12 +26,55 @@ import os
 import requests
 from datetime import datetime
 
+
+from  WIMLib.WiMLogging import WiMLogging as log
+
+
+class ServiceAgentBase(object):
+    """ """
+    #region Constructor
+    def __init__(self,baseurl):
+        self.BaseUrl = baseurl
+    def __enter__(self):
+        return self
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.BaseUrl = None
+    #endregion
+
+    #region Methods
+    def Execute(self, resource):
+        try:
+            url = self.BaseUrl + resource
+            #below is temporary for batch jkn
+            try:
+                response = requests.get(url)
+                return response.json()
+            except:
+                self._sm("Error: file " + os.path.basename(resource) + " does not exist within Gages iii", 1.62, 'ERROR')
+                return ''
+        except requests.exceptions.RequestException as e:
+                self._sm("Error:, failed to reach a server " + e.strerror, 1.54, 'ERROR')
+                return ""
+        except:
+            tb = traceback.format_exc()            
+            self._sm("url exception failed " + resource + ' ' + tb, 1.60, 'ERROR')
+            return ""    
+    
+    def indexMatching(self, seq, condition):
+        for i,x in enumerate(seq):
+            if condition(x):
+                return i
+        return -1
+
+    def _sm(self,msg,type="INFO", errorID=0):        
+        log().sm(msg,type="INFO", errorID=0)
+
 #endregion
 
-class WIMServiceAgent(ServiceAgentBase.ServiceAgentBase):
+class WIMServiceAgent(ServiceAgentBase):
     #region Constructor
     def __init__(self):
-        ServiceAgentBase.ServiceAgentBase.__init__(self, Config()["WIM"]["baseurl"])
+        ServiceAgentBase.__init__(self, Config()["WIM"]["baseurl"])
         self.resources = Config()["WIM"]["resources"]
 
         self._sm("initialized WIMServiceAgent")
@@ -39,7 +82,7 @@ class WIMServiceAgent(ServiceAgentBase.ServiceAgentBase):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        ServiceAgentBase.ServiceAgentBase.__exit__(self, exc_type, exc_value, traceback) 
+        ServiceAgentBase.__exit__(self, exc_type, exc_value, traceback) 
     #endregion
     #region Methods
     def getKrigGages(self, region, xpoint , ypoint, crs = 4326):
