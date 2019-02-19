@@ -50,9 +50,6 @@ parser.add_argument ("-inputEPSG_Code", help="Default WGS 84 (4326),see http://s
                     default = '4326')
 args = parser.parse_args()
 
-print (list(filter(lambda x: '.csv' in x, os.listdir('~/StreamStatsIntegrationTest'))))
-print (os.listdir("~/StreamStatsIntegrationTest/"))
-
 #Check if file (Input.csv) is in csv
 if not os.path.isfile(args.file): raise Exception ("File does not exist")
 refDir = {"bdel":config["referenceFolderBasinDel"],"bchar":config["referenceFolderBasinChar"]}
