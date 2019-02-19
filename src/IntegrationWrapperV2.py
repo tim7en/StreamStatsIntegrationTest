@@ -60,8 +60,8 @@ args = parser.parse_args()
 #Check if file (Input.csv) is in csv
 #if not os.path.isfile(args.file): raise Exception ("File does not exist")
 refDir = {"bdel":config["referenceFolderBasinDel"],"bchar":config["referenceFolderBasinChar"]}
-#file = Shared.readCSVFile(args.file)
-file = Shared.readURL (url)
+file = Shared.readCSVFile(args.file)
+#file = Shared.readURL (url)
 
 headers = file[0]
 rcode = headers.index("State") if "State" in headers else 0
