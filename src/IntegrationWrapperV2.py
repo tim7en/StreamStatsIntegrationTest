@@ -45,20 +45,16 @@ WiMLogging (workingDir)
 #Used for command line
 parser = argparse.ArgumentParser()
 parser.add_argument ("-file", help="specifies csv file location including gage lat/long and comid's to estimate", type=str, #Use the following LAT/LON pour point
-                    default ='~/StreamStatsIntegrationTest/InputCoordinates') #Change to the location of the csv file                   
+                    default ='/home/tim7en/StreamStatsIntegrationTest/InputCoordinates.csv') #Change to the location of the csv file                   
 parser.add_argument ("-inputEPSG_Code", help="Default WGS 84 (4326),see http://spatialreference.org/ref/epsg/ ", type=int,
                     default = '4326')
 args = parser.parse_args()
 
-#print (list(filter(lambda x: '.csv' in x, os.listdir('~/StreamStatsIntegrationTest'))))
-#print (os.listdir("~/StreamStatsIntegrationTest/"))
-
-
-#print (list(filter(lambda x: '.csv' in x, os.listdir('~/StreamStatsIntegrationTest'))))
-#print (os.listdir("~/StreamStatsIntegrationTest/"))
+print (list(filter(lambda x: '.csv' in x, os.listdir('~/StreamStatsIntegrationTest'))))
+print (os.listdir("~/StreamStatsIntegrationTest/"))
 
 #Check if file (Input.csv) is in csv
-#if not os.path.isfile(args.file): raise Exception ("File does not exist")
+if not os.path.isfile(args.file): raise Exception ("File does not exist")
 refDir = {"bdel":config["referenceFolderBasinDel"],"bchar":config["referenceFolderBasinChar"]}
 file = Shared.readCSVFile(args.file)
 #file = Shared.readURL (url)
