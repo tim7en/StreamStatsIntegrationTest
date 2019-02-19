@@ -14,8 +14,8 @@
       "models": "/regressionservice/models/{0}/estimate?state={1}"
     }
   },
-  "workingdirectory": "/home/tim7en/StreamStatsIntegrationTest/Test",
+  "workingdirectory": "/home/StreamStatsIntegrationTest/Test",
   "outputFile": "Output_{0}.csv",
-  "referenceFolderBasinDel": "/home/tim7en/StreamStatsIntegrationTest/BasinDel",
-  "referenceFolderBasinChar": "/home/tim7en/StreamStatsIntegrationTest/BasinChar"
+  "referenceFolderBasinDel": "/home/StreamStatsIntegrationTest/BasinDel",
+  "referenceFolderBasinChar": "/home/StreamStatsIntegrationTest/BasinChar"
 }

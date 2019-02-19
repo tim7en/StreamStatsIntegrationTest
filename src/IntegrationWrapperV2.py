@@ -45,7 +45,7 @@ WiMLogging (workingDir)
 #Used for command line
 parser = argparse.ArgumentParser()
 parser.add_argument ("-file", help="specifies csv file location including gage lat/long and comid's to estimate", type=str, #Use the following LAT/LON pour point
-                    default ='/home/tim7en/StreamStatsIntegrationTest/InputCoordinates.csv') #Change to the location of the csv file                   
+                    default ='/home/StreamStatsIntegrationTest/InputCoordinates.csv') #Change to the location of the csv file                   
 parser.add_argument ("-inputEPSG_Code", help="Default WGS 84 (4326),see http://spatialreference.org/ref/epsg/ ", type=int,
                     default = '4326')
 args = parser.parse_args()
