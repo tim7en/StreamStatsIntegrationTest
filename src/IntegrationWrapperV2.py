@@ -282,6 +282,10 @@ def compare (inputObj, path, ID, workingDir,
                         WiMLogging().sm ('Updated Bchar in the reference folder : ', str(ID) )
                         refObj = dictOutput
                         fSummary.write (str(ID)+ ':' +'Bchar gets replaced'+ '\n')
+                        fSummary.write (str(ID)+ ':' + 'Bchar in reference' + '\n')
+                        fSummary.write (refObj)
+                        fSummary.write (str(ID)+ ':' + 'Bchar from server call' + '\n')
+                        fSummary.write (dictOutput)
                         counterOverwrite (sumPath, 'bcharrep')
                     counterOverwrite (sumPath, 'bchar')
                     fSummary.close ()
