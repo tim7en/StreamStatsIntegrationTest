@@ -22,7 +22,8 @@ queue_list = queue.Queue()
 
 
 #Open config file and define workspace
-config = Config (json.load(open(os.path.join(os.path.dirname(__file__), 'config.json'))))
+config = json.load(open(os.path.join(os.path.dirname(__file__), 'config.json')))
+Config (config)
 workingDir = Shared.GetWorkspaceDirectory (config["workingdirectory"]) #initialize and create logging folder w file
 
 #Create Summary.txt in the root folder of streamstats (Need to change directory)
@@ -45,7 +46,7 @@ WiMLogging (workingDir)
 #Used for command line
 parser = argparse.ArgumentParser()
 parser.add_argument ("-file", help="specifies csv file location including gage lat/long and comid's to estimate", type=str, #Use the following LAT/LON pour point
-                    default ='/home/ubuntu/StreamStatsIntegrationTest/InputCoordinates.csv') #Change to the location of the csv file                   
+                    default = config["referenceCoordinates"]) #Change to the location of the csv file                   
 parser.add_argument ("-inputEPSG_Code", help="Default WGS 84 (4326),see http://spatialreference.org/ref/epsg/ ", type=int,
                     default = '4326')
 args = parser.parse_args()
