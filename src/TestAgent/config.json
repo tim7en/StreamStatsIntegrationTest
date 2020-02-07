@@ -14,9 +14,9 @@
       "models": "/regressionservice/models/{0}/estimate?state={1}"
     }
   },
-  "workingdirectory": "D:/Work/StreamStatsIntegrationTest-staging/Test",
-  "outputFile": "D:/Work/StreamStatsIntegrationTest-staging/InputCoordinates.csv",
-  "referenceFolderBasinDel": "D:/Work/StreamStatsIntegrationTest-staging/BasinDel",
-  "referenceFolderBasinChar": "D:/Work/StreamStatsIntegrationTest-staging/BasinChar",
-  "referenceCoordinates": "D:/Work/StreamStatsIntegrationTest-staging/InputCoordinates.csv"
+  "workingdirectory": "D:/Work/Integration/StreamStatsIntegrationTest/Test",
+  "outputFile": "D:/Work/Integration/StreamStatsIntegrationTest/InputCoordinates.csv",
+  "referenceFolderBasinDel": "D:/Work/Integration/StreamStatsIntegrationTest/BasinDel",
+  "referenceFolderBasinChar": "D:/Work/Integration/StreamStatsIntegrationTest/BasinChar",
+  "referenceCoordinates": "D:/Work/Integration/StreamStatsIntegrationTest/InputCoordinates.csv"
 }

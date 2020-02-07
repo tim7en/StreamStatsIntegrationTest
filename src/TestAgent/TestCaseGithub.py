@@ -62,44 +62,45 @@ result = response[0]["features"]
 bcharpath = config["referenceFolderBasinChar"]
 
 
-mismatch = []
+
 workingDir = Shared.GetWorkspaceDirectory (config["workingdirectory"]) #initialize and create logging folder w file
 sumPath = os.path.join (workingDir, 'TestCase.txt')
 fSummary = open (sumPath, 'w+')
 for i in result:
+    mismatch = {}
     try:
         siteid = int(i.get("properties").get("siteid"))  
         jsonpath = (bcharpath + "/" + str(siteid) + ".json")    
+        
         bcharvalues = i.get("properties").get("testData")
     
 
         with open(jsonpath, 'r') as f:
             bchar = json.load(f)    
     
-        
         for item in bchar:
             for j in item:
                 if list (j.keys())[0] == "code":
                     varname = list(j.values())[0]
-                    myval = testCase().FindString ( varname, bcharvalues)                   
+                    myval = testCase().FindString ( varname, bcharvalues)
                 elif list (j.keys())[0] == "value":
                     if (myval is None):
                         None
-                    else:                       
+                    else:          
                         if (float(myval) == float(list(j.values())[0])):
-                            None
+                            print ("")
                         else:
-                            mismatch.append(
-                                    {"Reference": float(myval)},
-                                    {"Server": float (list(j.values())[0])}
-                                    )
+                            mismatch["Attribute"] = varname
+                            mismatch['Reference'] = float(myval)
+                            mismatch['Server'] = float (list(j.values())[0])
                 else:
                     None
-                    
+              
         fSummary.write ("Results for site: " + str(siteid) + '\n')
         fSummary.write (str(mismatch) + '\n')
 
     except:
+        fSummary.write ("Exception error site: " + str(siteid) + '\n')
         None
 fSummary.close ()
 
